@@ -1,7 +1,7 @@
+DROP SCHEMA plsh_test CASCADE;
 CREATE SCHEMA plsh_test;
 SET search_path TO plsh_test;
 
-DROP FUNCTION shtest(text, text);
 CREATE FUNCTION shtest (text, text) RETURNS text AS '
 #!/bin/sh
 echo "One: $1 Two: $2"
@@ -14,7 +14,6 @@ exit 0
 SELECT shtest('foo', 'bar');
 SELECT shtest('xxx', 'xxx');
 
-DROP FUNCTION shtrigger();
 CREATE FUNCTION shtrigger() RETURNS trigger AS '
 #!/bin/sh
 (
@@ -25,10 +24,8 @@ done
 exit 0
 ' LANGUAGE plsh;
 
-DROP TABLE pfoo;
 CREATE TABLE pfoo (a int, b text);
 
-DROP TRIGGER testtrigger ON pfoo;
 CREATE TRIGGER testtrigger AFTER INSERT ON pfoo
     FOR EACH ROW EXECUTE PROCEDURE shtrigger('dummy');
 
