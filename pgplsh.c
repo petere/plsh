@@ -1,7 +1,7 @@
 /*
  * PL/sh language handler
  *
- * Copyright © 2001, 2002 by Peter Eisentraut
+ * Copyright © 2001, 2002, 2005 by Peter Eisentraut
  * See the COPYING file for details.
  *
  */
@@ -224,6 +224,8 @@ plsh_handler(PG_FUNCTION_ARGS)
 	bool return_null;
 	char * s;
 	HeapTuple returntuple = NULL;
+	Datum prosrcdatum;
+	bool isnull;
 
 	function_oid = fcinfo->flinfo->fn_oid;
 
@@ -231,9 +233,14 @@ plsh_handler(PG_FUNCTION_ARGS)
 	if (!HeapTupleIsValid(proctuple))
 		elog(ERROR, "could not find function with oid %u", function_oid);
 
-	pg_proc_entry = (Form_pg_proc) GETSTRUCT(proctuple);
+	prosrcdatum = SysCacheGetAttr(PROCOID, proctuple, Anum_pg_proc_prosrc, &isnull);
+	if (isnull)
+		elog(ERROR, "null prosrc");
 
-	sourcecode = pstrdup(_textout(pg_proc_entry->prosrc));
+	sourcecode = pstrdup(DatumGetCString(DirectFunctionCall1(textout,
+															 prosrcdatum)));
+
+	pg_proc_entry = (Form_pg_proc) GETSTRUCT(proctuple);
 
 
 	/* find shell and arguments */
