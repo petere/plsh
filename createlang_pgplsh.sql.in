@@ -1,0 +1,5 @@
+CREATE FUNCTION pg_catalog.plsh_handler() RETURNS language_handler
+  AS '%filename%'
+  LANGUAGE C;
+
+CREATE LANGUAGE plsh HANDLER pg_catalog.plsh_handler;

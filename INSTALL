@@ -1,0 +1,20 @@
+PL/sh Installation Instructions
+===============================
+
+You need to have PostgreSQL 7.3 or later, and you need to have the
+server include files available, either installed or in the PostgreSQL
+source tree.
+
+To build and install PL/sh, use this procedure: 
+
+./configure --prefix=YOUR_CHOICE CPPFLAGS=-I/where/ever/pgsql/src/include
+make
+make install
+
+To declare the language in a database, use 
+
+psql -d DBNAME -f PREFIX/share/pgplsh/createlang_pgplsh.sql
+
+with a server running.  To drop it, use 'droplang plsh', or DROP
+FUNCTION plsh_handler(); DROP LANGUAGE plsh; if you want to do it
+manually.
