@@ -32,7 +32,7 @@
 
 
 /*
- * Convert the C string 'input' to a Datum of type 'typeoid'.
+ * Convert the C string "input" to a Datum of type "typeoid".
  */
 static Datum
 cstring_to_type(char * input, Oid typeoid)
@@ -43,7 +43,7 @@ cstring_to_type(char * input, Oid typeoid)
 
 	typetuple = SearchSysCache(TYPEOID, ObjectIdGetDatum(typeoid), 0, 0, 0);
 	if (!HeapTupleIsValid(typetuple))
-		elog(ERROR, "no type with oid %u", typeoid);
+		elog(ERROR, "cache lookup failed for type %u", typeoid);
 
 	pg_type_entry = (Form_pg_type) GETSTRUCT(typetuple);
 
@@ -59,7 +59,7 @@ cstring_to_type(char * input, Oid typeoid)
 
 
 /*
- * Convert the Datum 'input' that is of type 'typeoid' to a C string.
+ * Convert the Datum "input" that is of type "typeoid" to a C string.
  */
 static char *
 type_to_cstring(Datum input, Oid typeoid)
@@ -70,7 +70,7 @@ type_to_cstring(Datum input, Oid typeoid)
 
 	typetuple = SearchSysCache(TYPEOID, ObjectIdGetDatum(typeoid), 0, 0, 0);
 	if (!HeapTupleIsValid(typetuple))
-		elog(ERROR, "no type with oid %u", typeoid);
+		elog(ERROR, "cache lookup failed for type %u", typeoid);
 
 	pg_type_entry = (Form_pg_type) GETSTRUCT(typetuple);
 
@@ -120,7 +120,7 @@ sigchld_handler(int signum)
 
 
 /*
- * Read from 'file' until EOF or error.  Return the content in
+ * Read from "file" until EOF or error.  Return the content in
  * palloc'ed memory.  On error return NULL and set errno.
  */
 static char *
@@ -161,9 +161,9 @@ read_from_file(FILE * file)
 #define SPLIT_MAX 64
 
 /*
- * Split the 'string' at space boundaries.  The number of resulting
+ * Split the "string" at space boundaries.  The number of resulting
  * strings is in argcp, the actual strings in argv.  argcp should be
- * allocated to expect SPLIT_MAX strings.  'string' will be clobbered.
+ * allocated to expect SPLIT_MAX strings.  "string" will be clobbered.
  */
 static void
 split_string(char *argv[], int *argcp, char *string)
@@ -231,7 +231,7 @@ plsh_handler(PG_FUNCTION_ARGS)
 
 	proctuple = SearchSysCache(PROCOID, ObjectIdGetDatum(function_oid), 0, 0, 0);
 	if (!HeapTupleIsValid(proctuple))
-		elog(ERROR, "could not find function with oid %u", function_oid);
+		elog(ERROR, "cache lookup failed for function %u", function_oid);
 
 	prosrcdatum = SysCacheGetAttr(PROCOID, proctuple, Anum_pg_proc_prosrc, &isnull);
 	if (isnull)
@@ -250,18 +250,21 @@ plsh_handler(PG_FUNCTION_ARGS)
 	 *   CREATE FUNCTION .... AS '
 	 *   #!/bin/sh
 	 *   ...
-	 *   ' LANGUAGE 'plsh';
+	 *   ' LANGUAGE plsh;
 	 */
 	if (sourcecode[0] == '\n')
 		sourcecode++;
 
-	elog(DEBUG2, "source code of function oid %u:\n%s", function_oid,
+	elog(DEBUG2, "source code of function %u:\n%s", function_oid,
 	     sourcecode);
 
 	if (strlen(sourcecode) < 3 
 		|| (strncmp(sourcecode, "#!/", 3) != 0
 			&& strncmp(sourcecode, "#! /", 4) != 0))
-		elog(ERROR, "invalid start of script: '%-.10s...'", sourcecode);
+		ereport(ERROR,
+				(errcode(ERRCODE_SYNTAX_ERROR),
+				 errmsg("invalid start of script: %-.10s...", sourcecode),
+				 errdetail("Script code must start with \"#!/\" or \"#! /\".")));
 
 	rest = sourcecode + strcspn(sourcecode, "/");
 	len = strcspn(rest, "\n");
@@ -273,7 +276,7 @@ plsh_handler(PG_FUNCTION_ARGS)
 	ac = 0;
 	split_string(arguments, &ac, s);
 
-	elog(DEBUG2, "using shell '%s'", arguments[0]);
+	elog(DEBUG2, "using shell \"%s\"", arguments[0]);
 
 
 	/* copy source to temp file */
@@ -281,14 +284,18 @@ plsh_handler(PG_FUNCTION_ARGS)
 	strcpy(tempfile, "/tmp/.pgplsh-XXXXXX");
 	fd = my_mktemp(tempfile);
 	if (fd == -1)
-		elog(ERROR, "could not create temp file: %s", strerror(errno));
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not create temporary file: %m")));
 
 	file = fdopen(fd, "w");
 	if (!file)
 	{
 		close(fd);
 		remove(tempfile);
-		elog(ERROR, "could not open file stream: %s", strerror(errno));
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not open file stream to temporary file: %m")));
 	}
 
 	fprintf(file, "%s", rest);
@@ -296,12 +303,14 @@ plsh_handler(PG_FUNCTION_ARGS)
 	{
 		fclose(file);
 		remove(tempfile);
-		elog(ERROR, "could not write script to file: %s", strerror(errno));
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not write script to temporary file: %m")));
 	}
 
 	fclose(file);
 
-	elog(DEBUG2, "source code is now in file %s", tempfile);
+	elog(DEBUG2, "source code is now in file \"%s\"", tempfile);
 
 
 	/* evaluate arguments */
@@ -333,7 +342,7 @@ plsh_handler(PG_FUNCTION_ARGS)
 			else
 				s = type_to_cstring(attr, tupdesc->attrs[i]->atttypid);
 
-			elog(DEBUG2, "arg %d is '%s' (type %u)", i, s,
+			elog(DEBUG2, "arg %d is \"%s\" (type %u)", i, s,
 			     tupdesc->attrs[i]->atttypid);
 
 			arguments[ac++] = s;
@@ -348,7 +357,7 @@ plsh_handler(PG_FUNCTION_ARGS)
 		else if (TRIGGER_FIRED_BY_UPDATE(trigdata->tg_event))
 			returntuple = trigdata->tg_newtuple;
 		else
-			elog(ERROR, "trigger fired by unknown");
+			elog(ERROR, "unrecognized trigger action: not INSERT, DELETE, or UPDATE");
 	}
 	else /* not trigger */
 	{
@@ -362,7 +371,7 @@ plsh_handler(PG_FUNCTION_ARGS)
 				s = type_to_cstring(PG_GETARG_DATUM(i),
 									pg_proc_entry->proargtypes[i]);
 
-			elog(DEBUG2, "arg %d is '%s'", i, s);
+			elog(DEBUG2, "arg %d is \"%s\"", i, s);
 
 			arguments[ac++] = s;
 		}
@@ -377,14 +386,18 @@ plsh_handler(PG_FUNCTION_ARGS)
 	if (pipe(stdout_pipe) == -1)
 	{
 		remove(tempfile);
-		elog(ERROR, "could not make pipe: %s", strerror(errno));
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not make pipe: %m")));
 	}
 	if (pipe(stderr_pipe) == -1)
 	{
 		remove(tempfile);
 		close(stdout_pipe[0]);
 		close(stdout_pipe[1]);
-		elog(ERROR, "could not make pipe: %s", strerror(errno));
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not make pipe: %m")));
 	}
 
 #if 0
@@ -400,7 +413,9 @@ plsh_handler(PG_FUNCTION_ARGS)
 		close(stdout_pipe[1]);
 		close(stderr_pipe[0]);
 		close(stderr_pipe[1]);
-		elog(ERROR, "fork failed: %s", strerror(errno));
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("fork failed: %m")));
 	}
 	else if (child_pid == 0)	/* child */
 	{
@@ -413,7 +428,9 @@ plsh_handler(PG_FUNCTION_ARGS)
 		close(stdout_pipe[1]);
 		close(stderr_pipe[1]);
 		execv(arguments[0], arguments);
-		elog(ERROR, "could not exec: %s", strerror(errno));
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not exec: %m")));
 	}
 
 	/* parent continues... */
@@ -431,7 +448,9 @@ plsh_handler(PG_FUNCTION_ARGS)
 		remove(tempfile);
 		close(stdout_pipe[0]);
 		close(stderr_pipe[0]);
-		elog(ERROR, "could not open file stream: %s", strerror(errno));
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not open file stream to stdout pipe: %m")));
 	}
 
 	stdout_buffer = read_from_file(file);
@@ -440,7 +459,9 @@ plsh_handler(PG_FUNCTION_ARGS)
 	{
 		remove(tempfile);
 		close(stderr_pipe[0]);
-		elog(ERROR, "error reading script's stdout: %s", strerror(errno));
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not read script's stdout: %m")));
 	}
 
 	len = strlen(stdout_buffer);
@@ -449,30 +470,41 @@ plsh_handler(PG_FUNCTION_ARGS)
 	/* strip one trailing newline */
 	else if (stdout_buffer[len - 1] == '\n')
 		stdout_buffer[len - 1] = '\0';
-	elog(DEBUG2, "stdout was '%s'", stdout_buffer);
+	elog(DEBUG2, "stdout was \"%s\"", stdout_buffer);
 
 
-	/* print stderr on elog */
+	/* print stderr as error */
 
 	file = fdopen(stderr_pipe[0], "r");
 	if (!file)
 	{
 		remove(tempfile);
 		close(stderr_pipe[0]);
-		elog(ERROR, "could not open file stream: %s", strerror(errno));
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not open file stream to stderr pipe: %m")));
 	}
 
 	stderr_buffer = read_from_file(file);
 	fclose(file);
 	if (!stderr_buffer)
-		elog(ERROR, "error reading script's stderr: %s", strerror(errno));
+	{
+		remove(tempfile);
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not read script's stderr: %m")));
+	}
 
 	len = strlen(stderr_buffer);
 	if (stderr_buffer[len - 1] == '\n')
 		stderr_buffer[len - 1] = '\0';
 
 	if (stderr_buffer[0] != '\0')
-		elog(ERROR, "%s: %s", NameStr(pg_proc_entry->proname), stderr_buffer);
+	{
+		remove(tempfile);
+		ereport(ERROR,
+				(errmsg("%s: %s", NameStr(pg_proc_entry->proname), stderr_buffer)));
+	}
 
 
 	/* block and wait for the script to finish */
@@ -485,7 +517,9 @@ plsh_handler(PG_FUNCTION_ARGS)
 		remove(tempfile);
 
 		if (dead != child_pid)
-			elog(ERROR, "wait failed: %s", strerror(errno));
+			ereport(ERROR,
+					(errcode_for_file_access(),
+					 errmsg("wait failed: %m")));
 	}
 
 #if 0
@@ -495,13 +529,15 @@ plsh_handler(PG_FUNCTION_ARGS)
 	if (WIFEXITED(child_status))
 	{
 		if (WEXITSTATUS(child_status) != 0)
-			elog(ERROR, "script exited with status %d",
-				 WEXITSTATUS(child_status));
+			ereport(ERROR,
+					(errmsg("script exited with status %d",
+						   WEXITSTATUS(child_status))));
 	}
 	if (WIFSIGNALED(child_status))
 	{
-		elog(ERROR, "script was terminated by signal %d",
-			 (int)WTERMSIG(child_status));
+		ereport(ERROR,
+				(errmsg("script was terminated by signal %d",
+						(int)WTERMSIG(child_status))));
 	}
 
 	ReleaseSysCache(proctuple);
