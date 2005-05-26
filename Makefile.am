@@ -1,13 +1,17 @@
 AUTOMAKE_OPTIONS = foreign
+
 EXTRA_DIST = test.sql createlang_pgplsh.sql.in
 
-lib_LTLIBRARIES = pgplsh.la
+pkglib_LTLIBRARIES = pgplsh.la
 pgplsh_la_SOURCES = pgplsh.c
 pgplsh_la_LDFLAGS = -module -avoid-version
 
 pkgdata_SCRIPTS = createlang_pgplsh.sql
 
 createlang_pgplsh.sql: createlang_pgplsh.sql.in pgplsh.la
-	.  pgplsh.la && sed "s,%filename%,$(libdir)/$$dlname,g" $(srcdir)/createlang_pgplsh.sql.in >createlang_pgplsh.sql
+	.  pgplsh.la && sed "s,%filename%,$(pkglibdir)/$$dlname,g" $(srcdir)/createlang_pgplsh.sql.in >createlang_pgplsh.sql
 
 pkgdata_DATA = test.sql
+
+CLEANFILES = createlang_pgplsh.sql
+MAINTAINERCLEANFILES = aclocal.m4 config.guess config.sub configure depcomp install-sh ltmain.sh Makefile.in missing
