@@ -1,6 +1,9 @@
+\set ECHO all
 DROP SCHEMA plsh_test CASCADE;
 CREATE SCHEMA plsh_test;
 SET search_path TO plsh_test;
+
+CREATE FUNCTION valtest(text) RETURNS text AS 'foo' LANGUAGE plsh;
 
 CREATE FUNCTION shtest (text, text) RETURNS text AS '
 #!/bin/sh

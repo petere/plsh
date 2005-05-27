@@ -198,14 +198,11 @@ my_mktemp(char *name)
 
 
 /*
- * The PL handler
+ * Internal handler function
  */
-PG_FUNCTION_INFO_V1(plsh_handler);
-
 Datum
-plsh_handler(PG_FUNCTION_ARGS)
+handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 {
-	Oid function_oid;
 	HeapTuple proctuple;
 	Form_pg_proc pg_proc_entry;
 	char * sourcecode;
@@ -226,8 +223,6 @@ plsh_handler(PG_FUNCTION_ARGS)
 	HeapTuple returntuple = NULL;
 	Datum prosrcdatum;
 	bool isnull;
-
-	function_oid = fcinfo->flinfo->fn_oid;
 
 	proctuple = SearchSysCache(PROCOID, ObjectIdGetDatum(function_oid), 0, 0, 0);
 	if (!HeapTupleIsValid(proctuple))
@@ -278,6 +273,13 @@ plsh_handler(PG_FUNCTION_ARGS)
 
 	elog(DEBUG2, "using shell \"%s\"", arguments[0]);
 
+
+	/* validation stops here */
+	if (!execute)
+	{
+		ReleaseSysCache(proctuple);
+		PG_RETURN_VOID();
+	}
 
 	/* copy source to temp file */
 
@@ -554,4 +556,30 @@ plsh_handler(PG_FUNCTION_ARGS)
 			PG_RETURN_DATUM(cstring_to_type(stdout_buffer,
 											pg_proc_entry->prorettype));
 	}
+}
+
+
+
+/*
+ * The PL handler
+ */
+PG_FUNCTION_INFO_V1(plsh_handler);
+
+Datum
+plsh_handler(PG_FUNCTION_ARGS)
+{
+	return handler_internal(fcinfo->flinfo->fn_oid, fcinfo, true);
+}
+
+
+
+/*
+ * Validator function
+ */
+PG_FUNCTION_INFO_V1(plsh_validator);
+
+Datum
+plsh_validator(PG_FUNCTION_ARGS)
+{
+	return handler_internal(PG_GETARG_OID(0), fcinfo, false);
 }

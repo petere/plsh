@@ -1,5 +1,11 @@
 CREATE FUNCTION pg_catalog.plsh_handler() RETURNS language_handler
-  AS '%filename%'
-  LANGUAGE C;
+    AS '%filename%'
+    LANGUAGE C;
 
-CREATE LANGUAGE plsh HANDLER pg_catalog.plsh_handler;
+CREATE FUNCTION pg_catalog.plsh_validator(oid) RETURNS void
+    AS '%filename%'
+    LANGUAGE C;
+
+CREATE LANGUAGE plsh
+    HANDLER pg_catalog.plsh_handler
+    VALIDATOR pg_catalog.plsh_validator;
