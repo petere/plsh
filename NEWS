@@ -1,3 +1,17 @@
+* Version 1.1
+
+  Released 2005-05-28
+
+- Works with PostgreSQL 7.4 and 8.0.
+
+- Has validator function, checking function body for basic syntactical
+  correctness.
+
+- Supports modern error reporting with codes and detail messages.
+
+- Uses pg_config to detect PostgreSQL installation for build.
+
+
 * Version 1.0
 
   Released 2002-12-17
