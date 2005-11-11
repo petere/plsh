@@ -1,4 +1,4 @@
-AC_INIT(pgplsh, 1.1, [peter_e@gmx.net])
+AC_INIT(pgplsh, 1.2, [peter_e@gmx.net])
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR(pgplsh.c)
 
