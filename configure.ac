@@ -10,7 +10,7 @@ AM_PROG_LIBTOOL
 AC_SUBST(LIBTOOL_DEPS)
 
 AC_PATH_PROGS(PG_CONFIG, pg_config)
-if test -z "$PG_CONFIG" ; then
+if test -z "$PG_CONFIG" || test ! -r "$PG_CONFIG" ; then
   AC_MSG_ERROR([pg_config not found])
 fi
 postgresql_includes=`$PG_CONFIG --includedir`
