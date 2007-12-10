@@ -1,7 +1,7 @@
 /*
  * PL/sh language handler
  *
- * Copyright © 2001, 2002, 2005 by Peter Eisentraut
+ * Copyright © 2001, 2002, 2005. 2007 by Peter Eisentraut
  * See the COPYING file for details.
  *
  */
@@ -26,6 +26,10 @@
 #include <limits.h>
 #include <errno.h>
 
+
+#ifdef PG_MODULE_MAGIC
+PG_MODULE_MAGIC;
+#endif
 
 
 #define _textout(x) (DatumGetCString(DirectFunctionCall1(textout, PointerGetDatum(&x))))
