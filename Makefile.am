@@ -9,7 +9,7 @@ pgplsh_la_LDFLAGS = -module -avoid-version
 pkgdata_SCRIPTS = createlang_pgplsh.sql
 
 createlang_pgplsh.sql: createlang_pgplsh.sql.in pgplsh.la
-	.  pgplsh.la && sed "s,%filename%,$(pkglibdir)/$$dlname,g" $(srcdir)/createlang_pgplsh.sql.in >createlang_pgplsh.sql
+	.  ./pgplsh.la && sed "s,%filename%,$(pkglibdir)/$$dlname,g" $(srcdir)/createlang_pgplsh.sql.in >createlang_pgplsh.sql
 
 pkgdata_DATA = test.sql
 
