@@ -23,7 +23,7 @@ CREATE FUNCTION shtrigger() RETURNS trigger AS '
 for arg do
     echo "Arg is $arg"
 done
-) >> $HOME/voodoo-pgplsh-test
+) >> /tmp/voodoo-pgplsh-test
 exit 0
 ' LANGUAGE plsh;
 
@@ -36,5 +36,5 @@ INSERT INTO pfoo VALUES (1, 'one');
 INSERT INTO pfoo VALUES (2, 'two');
 INSERT INTO pfoo VALUES (3, 'three');
 
-\!cat $HOME/voodoo-pgplsh-test
-\!rm $HOME/voodoo-pgplsh-test
+\! cat /tmp/voodoo-pgplsh-test
+\! rm /tmp/voodoo-pgplsh-test
