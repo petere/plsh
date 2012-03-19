@@ -1,9 +1,9 @@
 CREATE FUNCTION pg_catalog.plsh_handler() RETURNS language_handler
-    AS '%filename%'
+    AS '$libdir/pgplsh'
     LANGUAGE C;
 
 CREATE FUNCTION pg_catalog.plsh_validator(oid) RETURNS void
-    AS '%filename%'
+    AS '$libdir/pgplsh'
     LANGUAGE C;
 
 CREATE LANGUAGE plsh

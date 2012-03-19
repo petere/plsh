@@ -1,12 +1,11 @@
 PL/sh Installation Instructions
 ===============================
 
-You need to have PostgreSQL 7.4 or later, and you need to have the
+You need to have PostgreSQL 8.0 or later, and you need to have the
 server include files installed.
 
-To build and install PL/sh, use this procedure: 
+To build and install PL/sh, use this procedure:
 
-./configure --prefix=YOUR_CHOICE
 make
 make install
 
@@ -15,19 +14,17 @@ included in the PostgreSQL installation.  To use a different
 PostgreSQL installation, point configure to a different pg_config like
 so:
 
-./configure ... PG_CONFIG=/else/where/pg_config
+make PG_CONFIG=/else/where/pg_config
+make install PG_CONFIG=/else/where/pg_config
 
 Note that generally server-side modules such as this one have to be
-recompiled for every major PostgreSQL version (that is, 7.4, 8.0,
+recompiled for every major PostgreSQL version (that is, 8.4, 9.0,
 ...).
 
-To declare the language in a database, use 
+To declare the language in a database, use
 
-psql -d DBNAME -f PREFIX/share/pgplsh/createlang_pgplsh.sql
+psql -d DBNAME -f .../share/contrib/createlang_pgplsh.sql
 
 with a server running.  To drop it, use "droplang plsh", or DROP
 FUNCTION plsh_handler(); DROP LANGUAGE plsh; if you want to do it
 manually.
-
-If you checked out the source code from CVS, run "autoreconf -i" first
-to set up the build infrastructure.
