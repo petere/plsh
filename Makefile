@@ -1,5 +1,5 @@
-MODULE_big = pgplsh
-OBJS = pgplsh.o
+MODULE_big = plsh
+OBJS = plsh.o
 
 DATA_built = createlang_pgplsh.sql
 
