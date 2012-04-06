@@ -9,3 +9,5 @@ CREATE FUNCTION pg_catalog.plsh_validator(oid) RETURNS void
 CREATE LANGUAGE plsh
     HANDLER pg_catalog.plsh_handler
     VALIDATOR pg_catalog.plsh_validator;
+
+COMMENT ON LANGUAGE plsh IS 'PL/sh procedural language';
