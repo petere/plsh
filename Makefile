@@ -7,6 +7,8 @@ PG_CONFIG = pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
 
+override CFLAGS := $(filter-out -Wmissing-prototypes,$(CFLAGS))
+
 version = $(shell git describe --tags)
 
 dist:
