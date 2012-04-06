@@ -1,7 +1,7 @@
 /*
  * PL/sh language handler
  *
- * Copyright © 2001, 2002, 2005. 2007 by Peter Eisentraut
+ * Copyright Â© 2001, 2002, 2005. 2007 by Peter Eisentraut
  * See the COPYING file for details.
  *
  */
