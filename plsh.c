@@ -146,7 +146,7 @@ read_from_file(FILE * file)
 		strncpy(buffer + len, buf, l);
 		buffer[len + l] = '\0';
 		len += l;
-		
+
 		if (feof(file))
 		{
 			break;
@@ -256,9 +256,9 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 		sourcecode++;
 
 	elog(DEBUG2, "source code of function %u:\n%s", function_oid,
-	     sourcecode);
+		 sourcecode);
 
-	if (strlen(sourcecode) < 3 
+	if (strlen(sourcecode) < 3
 		|| (strncmp(sourcecode, "#!/", 3) != 0
 			&& strncmp(sourcecode, "#! /", 4) != 0))
 		ereport(ERROR,
@@ -350,7 +350,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 				s = type_to_cstring(attr, tupdesc->attrs[i]->atttypid);
 
 			elog(DEBUG2, "arg %d is \"%s\" (type %u)", i, s,
-			     tupdesc->attrs[i]->atttypid);
+				 tupdesc->attrs[i]->atttypid);
 
 			arguments[ac++] = s;
 		}
