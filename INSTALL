@@ -21,9 +21,21 @@ Note that generally server-side modules such as this one have to be
 recompiled for every major PostgreSQL version (that is, 8.4, 9.0,
 ...).
 
-To declare the language in a database, use
+To declare the language in a database, use the extension system with
+PostgreSQL version 9.1 or later.  Run
 
-psql -d DBNAME -f .../share/contrib/createlang_pgplsh.sql
+CREATE EXTENSION plsh;
+
+inside the database of choice.  To upgrade from a previous
+installation that doesn't use the extension system, use
+
+CREATE EXTENSION plsh FROM unpackaged;
+
+Use DROP EXTENSION to remove it.
+
+With versions prior to PostgreSQL 9.1, use
+
+psql -d DBNAME -f .../share/contrib/plsh.sql
 
 with a server running.  To drop it, use "droplang plsh", or DROP
 FUNCTION plsh_handler(); DROP LANGUAGE plsh; if you want to do it

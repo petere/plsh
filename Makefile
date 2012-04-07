@@ -1,13 +1,29 @@
+PG_CONFIG = pg_config
+
+pg_version := $(word 2,$(shell $(PG_CONFIG) --version))
+extensions_supported = $(filter-out 6.% 7.% 8.% 9.0%,$(pg_version))
+
+
 MODULE_big = plsh
 OBJS = plsh.o
 
-DATA_built = createlang_pgplsh.sql
+extension_version = 1
 
-PG_CONFIG = pg_config
+DATA = $(if $(extensions_supported),plsh--unpackaged--1.sql plsh--$(extension_version).sql,plsh.sql)
+EXTENSION = plsh
+
+EXTRA_CLEAN = plsh--$(extension_version).sql
+
+
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
 
 override CFLAGS := $(filter-out -Wmissing-prototypes,$(CFLAGS))
+
+
+plsh--$(extension_version).sql: plsh.sql
+	cp $< $@
+
 
 version = $(shell git describe --tags)
 
