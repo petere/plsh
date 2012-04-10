@@ -10,6 +10,7 @@ OBJS = plsh.o
 extension_version = 1
 
 DATA = $(if $(extensions_supported),plsh--unpackaged--1.sql plsh--$(extension_version).sql,plsh.sql)
+DATA_built = $(if $(extensions_supported),plsh--$(extension_version).sql)
 EXTENSION = plsh
 
 EXTRA_CLEAN = plsh--$(extension_version).sql
