@@ -38,3 +38,9 @@ INSERT INTO pfoo VALUES (3, 'three');
 
 \! cat /tmp/voodoo-pgplsh-test
 \! rm /tmp/voodoo-pgplsh-test
+
+-- CR/LF test
+CREATE FUNCTION crlf_test() RETURNS text LANGUAGE plsh
+AS E'\r\n#!/bin/sh\r\necho OK\r\n';
+
+SELECT crlf_test();

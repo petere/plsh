@@ -252,7 +252,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	 *   ...
 	 *   ' LANGUAGE plsh;
 	 */
-	if (sourcecode[0] == '\n')
+	while (sourcecode[0] == '\n' || sourcecode[0] == '\r')
 		sourcecode++;
 
 	elog(DEBUG2, "source code of function %u:\n%s", function_oid,
@@ -267,7 +267,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 				 errdetail("Script code must start with \"#!/\" or \"#! /\".")));
 
 	rest = sourcecode + strcspn(sourcecode, "/");
-	len = strcspn(rest, "\n");
+	len = strcspn(rest, "\n\r");
 	s = palloc(len + 1);
 	strncpy(s, rest, len);
 	s[len] = '\0';
