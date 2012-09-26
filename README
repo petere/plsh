@@ -26,8 +26,9 @@ the rows.  Needless to say, this language should not be declared as
 TRUSTED.
 
 Refer to the INSTALL file for installation instructions and COPYING
-for the license.  The distribution also contains test.sql which
-contains a simplistic demonstration of the functionality.
+for the license.  The distribution also contains a test suite in the
+directory test/, which contains a simplistic demonstration of the
+functionality.
 
 I'm interested if anyone is using this. 
 

@@ -1,0 +1,19 @@
+CREATE FUNCTION valtest(text) RETURNS text AS 'foo' LANGUAGE plsh;
+ERROR:  invalid start of script: foo...
+DETAIL:  Script code must start with "#!/" or "#! /".
+CREATE FUNCTION shtest (text, text) RETURNS text AS '
+#!/bin/sh
+echo "One: $1 Two: $2"
+if test $1 = $2; then
+    echo ''this is an error'' 1>&2
+fi
+exit 0
+' LANGUAGE plsh;
+SELECT shtest('foo', 'bar');
+      shtest       
+-------------------
+ One: foo Two: bar
+(1 row)
+
+SELECT shtest('xxx', 'xxx');
+ERROR:  shtest: this is an error

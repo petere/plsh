@@ -15,6 +15,9 @@ EXTENSION = plsh
 
 EXTRA_CLEAN = plsh--$(extension_version).sql
 
+REGRESS = init function trigger crlf
+REGRESS_OPTS = --inputdir=test
+
 
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)

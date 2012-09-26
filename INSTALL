@@ -9,6 +9,10 @@ To build and install PL/sh, use this procedure:
 make
 make install
 
+To run the test suite:
+
+make installcheck
+
 The include files are found using the pg_config program that is
 included in the PostgreSQL installation.  To use a different
 PostgreSQL installation, point configure to a different pg_config like
