@@ -1,0 +1,87 @@
+PL/sh Procedural Language Handler for PostgreSQL
+================================================
+
+PL/sh is a procedural language handler for PostgreSQL that allows you
+to write stored procedures in a shell of your choice.  For example,
+
+    CREATE FUNCTION concat(text, text) RETURNS text AS '
+    #!/bin/sh
+    echo "$1$2"
+    ' LANGUAGE plsh;
+
+The first line must be a `#!`-style line that indicates the shell to
+use.  The rest of the function body will be executed by that shell in
+a separate process.  The arguments are available as `$1`, `$2`, etc.,
+as usual.  (This is the shell's syntax. If your shell uses something
+different then that's what you need to use.)  The return value will
+become what is printed to the standard output, with a newline
+stripped.  If nothing is printed, a null value is returned.  If
+anything is printed to the standard error, then the function aborts
+with an error and the message is printed.  If the script does not exit
+with status 0 then an error is raised as well.
+
+The shell script can do anything you want, but you can't access the
+database.  Trigger functions are also possible, but they can't change
+the rows.  Needless to say, this language should not be declared as
+`TRUSTED`.
+
+The distribution also contains a test suite in the directory `test/`,
+which contains a simplistic demonstration of the functionality.
+
+I'm interested if anyone is using this.
+
+Peter Eisentraut <peter@eisentraut.org>
+
+Installation
+------------
+
+You need to have PostgreSQL 8.0 or later, and you need to have the
+server include files installed.
+
+To build and install PL/sh, use this procedure:
+
+    make
+    make install
+
+The include files are found using the `pg_config` program that is
+included in the PostgreSQL installation.  To use a different
+PostgreSQL installation, point configure to a different `pg_config` like
+so:
+
+    make PG_CONFIG=/else/where/pg_config
+    make install PG_CONFIG=/else/where/pg_config
+
+Note that generally server-side modules such as this one have to be
+recompiled for every major PostgreSQL version (that is, 8.4, 9.0,
+...).
+
+To declare the language in a database, use the extension system with
+PostgreSQL version 9.1 or later.  Run
+
+    CREATE EXTENSION plsh;
+
+inside the database of choice.  To upgrade from a previous
+installation that doesn't use the extension system, use
+
+    CREATE EXTENSION plsh FROM unpackaged;
+
+Use `DROP EXTENSION` to remove it.
+
+With versions prior to PostgreSQL 9.1, use
+
+    psql -d DBNAME -f .../share/contrib/plsh.sql
+
+with a server running.  To drop it, use `droplang plsh`, or `DROP
+FUNCTION plsh_handler(); DROP LANGUAGE plsh;` if you want to do it
+manually.
+
+Test suite
+----------
+
+[![Build Status](https://secure.travis-ci.org/petere/plsh.png)](http://travis-ci.org/petere/plsh)
+
+To run the test suite, execute
+
+    make installcheck
+
+after installation.
