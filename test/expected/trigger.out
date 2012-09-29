@@ -1,14 +1,16 @@
 \! mkdir /tmp/plsh-test && chmod a+rwx /tmp/plsh-test
-CREATE FUNCTION shtrigger() RETURNS trigger AS '
+CREATE FUNCTION shtrigger() RETURNS trigger AS $$
 #!/bin/sh
 (
 for arg do
     echo "Arg is $arg"
 done
+
+printenv | LC_ALL=C sort | grep '^PLSH_TG_'
 ) >> /tmp/plsh-test/foo
 chmod a+r /tmp/plsh-test/foo
 exit 0
-' LANGUAGE plsh;
+$$ LANGUAGE plsh;
 CREATE TABLE pfoo (a int, b text);
 CREATE TRIGGER testtrigger AFTER INSERT ON pfoo
     FOR EACH ROW EXECUTE PROCEDURE shtrigger('dummy');
@@ -22,11 +24,35 @@ UPDATE pfoo SET b = 'oneone' WHERE a = 1;
 Arg is dummy
 Arg is 1
 Arg is one
+PLSH_TG_LEVEL=ROW
+PLSH_TG_NAME=testtrigger
+PLSH_TG_OP=INSERT
+PLSH_TG_TABLE_NAME=pfoo
+PLSH_TG_TABLE_SCHEMA=public
+PLSH_TG_WHEN=AFTER
 Arg is dummy
 Arg is 2
 Arg is two
+PLSH_TG_LEVEL=ROW
+PLSH_TG_NAME=testtrigger
+PLSH_TG_OP=INSERT
+PLSH_TG_TABLE_NAME=pfoo
+PLSH_TG_TABLE_SCHEMA=public
+PLSH_TG_WHEN=AFTER
 Arg is dummy
 Arg is 3
 Arg is three
+PLSH_TG_LEVEL=ROW
+PLSH_TG_NAME=testtrigger
+PLSH_TG_OP=INSERT
+PLSH_TG_TABLE_NAME=pfoo
+PLSH_TG_TABLE_SCHEMA=public
+PLSH_TG_WHEN=AFTER
 Arg is dummy2
+PLSH_TG_LEVEL=STATEMENT
+PLSH_TG_NAME=testtrigger2
+PLSH_TG_OP=UPDATE
+PLSH_TG_TABLE_NAME=pfoo
+PLSH_TG_TABLE_SCHEMA=public
+PLSH_TG_WHEN=BEFORE
 \! rm -r /tmp/plsh-test

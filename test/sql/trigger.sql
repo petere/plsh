@@ -1,15 +1,17 @@
 \! mkdir /tmp/plsh-test && chmod a+rwx /tmp/plsh-test
 
-CREATE FUNCTION shtrigger() RETURNS trigger AS '
+CREATE FUNCTION shtrigger() RETURNS trigger AS $$
 #!/bin/sh
 (
 for arg do
     echo "Arg is $arg"
 done
+
+printenv | LC_ALL=C sort | grep '^PLSH_TG_'
 ) >> /tmp/plsh-test/foo
 chmod a+r /tmp/plsh-test/foo
 exit 0
-' LANGUAGE plsh;
+$$ LANGUAGE plsh;
 
 CREATE TABLE pfoo (a int, b text);
 

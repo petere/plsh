@@ -32,6 +32,19 @@ I'm interested if anyone is using this.
 
 Peter Eisentraut <peter@eisentraut.org>
 
+Triggers
+--------
+
+In a trigger procedure, trigger data is available to the script
+through environment variables (analogous to PL/pgSQL):
+
+* `PLSH_TG_NAME`: trigger name
+* `PLSH_TG_WHEN`: `BEFORE`, `INSTEAD OF`, or `AFTER`
+* `PLSH_TG_LEVEL`: `ROW` or `STATEMENT`
+* `PLSH_TG_OP`: `DELETE`, `INSERT`, `UPDATE`, or `TRUNCATE`
+* `PLSH_TG_TABLE_NAME`: name of the table the trigger is acting on
+* `PLSH_TG_TABLE_SCHEMA`: schema name of the table the trigger is acting on
+
 Installation
 ------------
 

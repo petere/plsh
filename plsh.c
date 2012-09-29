@@ -15,6 +15,7 @@
 #include <catalog/pg_type.h>
 #include <commands/trigger.h>
 #include <libpq/pqsignal.h>
+#include <utils/lsyscache.h>
 #include <utils/syscache.h>
 #include <utils/builtins.h>
 #include <utils/rel.h>
@@ -198,6 +199,55 @@ static int
 my_mktemp(char *name)
 {
 	return mkstemp(name);
+}
+
+
+
+/*
+ * Set environment variables corresponding to trigger data
+ */
+static void
+set_trigger_data_envvars(TriggerData *trigdata)
+{
+	const char *tg_when_str = NULL;
+	const char *tg_level_str = NULL;
+	const char *tg_op_str = NULL;
+
+	setenv("PLSH_TG_NAME", trigdata->tg_trigger->tgname, 1);
+
+	if (TRIGGER_FIRED_BEFORE(trigdata->tg_event))
+		tg_when_str = "BEFORE";
+#ifdef TRIGGER_FIRED_INSTEAD
+	else if (TRIGGER_FIRED_INSTEAD(trigdata->tg_event))
+		tg_when_str = "INSTEAD OF";
+#endif
+	else if (TRIGGER_FIRED_AFTER(trigdata->tg_event))
+		tg_when_str = "AFTER";
+	if (tg_when_str)
+		setenv("PLSH_TG_WHEN", tg_when_str, 1);
+
+	if (TRIGGER_FIRED_FOR_ROW(trigdata->tg_event))
+		tg_level_str = "ROW";
+	else if (TRIGGER_FIRED_FOR_STATEMENT(trigdata->tg_event))
+		tg_level_str = "STATEMENT";
+	if (tg_level_str)
+		setenv("PLSH_TG_LEVEL", tg_level_str, 1);
+
+	if (TRIGGER_FIRED_BY_DELETE(trigdata->tg_event))
+		tg_op_str = "DELETE";
+	else if (TRIGGER_FIRED_BY_INSERT(trigdata->tg_event))
+		tg_op_str = "INSERT";
+	else if (TRIGGER_FIRED_BY_UPDATE(trigdata->tg_event))
+		tg_op_str = "UPDATE";
+#ifdef TRIGGER_FIRED_BY_TRUNCATE
+	else if (TRIGGER_FIRED_BY_TRUNCATE(trigdata->tg_event))
+		tg_op_str = "TRUNCATE";
+#endif
+	if (tg_op_str)
+		setenv("PLSH_TG_OP", tg_op_str, 1);
+
+	setenv("PLSH_TG_TABLE_NAME", NameStr(trigdata->tg_relation->rd_rel->relname), 1);
+	setenv("PLSH_TG_TABLE_SCHEMA", get_namespace_name(trigdata->tg_relation->rd_rel->relnamespace), 1);
 }
 
 
@@ -440,6 +490,10 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 		dup2(stderr_pipe[1], 2);
 		close(stdout_pipe[1]);
 		close(stderr_pipe[1]);
+
+		if (CALLED_AS_TRIGGER(fcinfo))
+			set_trigger_data_envvars((TriggerData *) fcinfo->context);
+
 		execv(arguments[0], arguments);
 		ereport(ERROR,
 				(errcode_for_file_access(),
