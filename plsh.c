@@ -337,23 +337,24 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 			arguments[ac++] = trigger->tgargs[i];
 		}
 
-		for (i = 0; i < tupdesc->natts; i++)
-		{
-			char * s;
-			bool isnull;
-			Datum attr;
+		if (TRIGGER_FIRED_FOR_ROW(trigdata->tg_event))
+			for (i = 0; i < tupdesc->natts; i++)
+			{
+				char * s;
+				bool isnull;
+				Datum attr;
 
-			attr = heap_getattr(oldtuple, i + 1, tupdesc, &isnull);
-			if (isnull)
-				s = "";
-			else
-				s = type_to_cstring(attr, tupdesc->attrs[i]->atttypid);
+				attr = heap_getattr(oldtuple, i + 1, tupdesc, &isnull);
+				if (isnull)
+					s = "";
+				else
+					s = type_to_cstring(attr, tupdesc->attrs[i]->atttypid);
 
-			elog(DEBUG2, "arg %d is \"%s\" (type %u)", i, s,
-				 tupdesc->attrs[i]->atttypid);
+				elog(DEBUG2, "arg %d is \"%s\" (type %u)", i, s,
+					 tupdesc->attrs[i]->atttypid);
 
-			arguments[ac++] = s;
-		}
+				arguments[ac++] = s;
+			}
 
 		/* since we can't alter the tuple anyway, set up a return
            tuple right now */

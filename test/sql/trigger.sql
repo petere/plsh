@@ -16,9 +16,14 @@ CREATE TABLE pfoo (a int, b text);
 CREATE TRIGGER testtrigger AFTER INSERT ON pfoo
     FOR EACH ROW EXECUTE PROCEDURE shtrigger('dummy');
 
+CREATE TRIGGER testtrigger2 BEFORE UPDATE ON pfoo
+    FOR EACH STATEMENT EXECUTE PROCEDURE shtrigger('dummy2');
+
 INSERT INTO pfoo VALUES (1, 'one');
 INSERT INTO pfoo VALUES (2, 'two');
 INSERT INTO pfoo VALUES (3, 'three');
+
+UPDATE pfoo SET b = 'oneone' WHERE a = 1;
 
 \! cat /tmp/plsh-test/foo
 \! rm -r /tmp/plsh-test
