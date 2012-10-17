@@ -10,6 +10,9 @@
 #include <fmgr.h>
 #include <miscadmin.h>
 #include <access/heapam.h>
+#if defined(PG_VERSION_NUM) && PG_VERSION_NUM >= 90300
+#include <access/htup_details.h>
+#endif
 #include <catalog/catversion.h>
 #include <catalog/pg_proc.h>
 #include <catalog/pg_type.h>
