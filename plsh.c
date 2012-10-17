@@ -251,6 +251,25 @@ set_trigger_data_envvars(TriggerData *trigdata)
 }
 
 
+/*
+ * Block and wait for the script to finish
+ */
+static void
+wait_and_cleanup(const char *tempfile)
+{
+	pid_t dead;
+	do
+		dead = wait(&child_status);
+	while (dead > 0 && dead != child_pid);
+
+	remove(tempfile);
+
+	if (dead != child_pid)
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("wait failed: %m")));
+}
+
 
 /*
  * Internal handler function
@@ -512,9 +531,9 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	file = fdopen(stdout_pipe[0], "r");
 	if (!file)
 	{
-		remove(tempfile);
 		close(stdout_pipe[0]);
 		close(stderr_pipe[0]);
+		wait_and_cleanup(tempfile);
 		ereport(ERROR,
 				(errcode_for_file_access(),
 				 errmsg("could not open file stream to stdout pipe: %m")));
@@ -524,8 +543,8 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	fclose(file);
 	if (!stdout_buffer)
 	{
-		remove(tempfile);
 		close(stderr_pipe[0]);
+		wait_and_cleanup(tempfile);
 		ereport(ERROR,
 				(errcode_for_file_access(),
 				 errmsg("could not read script's stdout: %m")));
@@ -545,8 +564,8 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	file = fdopen(stderr_pipe[0], "r");
 	if (!file)
 	{
-		remove(tempfile);
 		close(stderr_pipe[0]);
+		wait_and_cleanup(tempfile);
 		ereport(ERROR,
 				(errcode_for_file_access(),
 				 errmsg("could not open file stream to stderr pipe: %m")));
@@ -556,7 +575,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	fclose(file);
 	if (!stderr_buffer)
 	{
-		remove(tempfile);
+		wait_and_cleanup(tempfile);
 		ereport(ERROR,
 				(errcode_for_file_access(),
 				 errmsg("could not read script's stderr: %m")));
@@ -568,26 +587,12 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 
 	if (stderr_buffer[0] != '\0')
 	{
-		remove(tempfile);
+		wait_and_cleanup(tempfile);
 		ereport(ERROR,
 				(errmsg("%s: %s", NameStr(pg_proc_entry->proname), stderr_buffer)));
 	}
 
-
-	/* block and wait for the script to finish */
-	{
-		pid_t dead;
-		do
-			dead = wait(&child_status);
-		while (dead > 0 && dead != child_pid);
-
-		remove(tempfile);
-
-		if (dead != child_pid)
-			ereport(ERROR,
-					(errcode_for_file_access(),
-					 errmsg("wait failed: %m")));
-	}
+	wait_and_cleanup(tempfile);
 
 #if 0
 	pqsignal(SIGCHLD, SIG_IGN);
