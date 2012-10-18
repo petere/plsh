@@ -1,3 +1,19 @@
+* Version 1.20121018
+
+- Works with PostgreSQL 8.3 through 9.3devel.  Earlier versions are no
+  longer tested but might still work.
+
+- Trigger data is now available as environment variables.
+
+- Fixed statement triggers.
+
+- Some fixes for Windows line endings.
+
+- Improved test suite.
+
+- Fixed a bug where a zombie process was left when the script exited
+  with an error.
+
 * Version 1.20120414
 
 - I am now following this version numbering system:
