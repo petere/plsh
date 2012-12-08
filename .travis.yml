@@ -1,2 +1,2 @@
 language: c
-script: make && sudo make install && make installcheck
+script: make && sudo make install && make installcheck || { cat regression.diffs; exit 1; }
