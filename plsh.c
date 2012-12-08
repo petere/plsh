@@ -16,8 +16,10 @@
 #include <catalog/catversion.h>
 #include <catalog/pg_proc.h>
 #include <catalog/pg_type.h>
+#include <commands/dbcommands.h>
 #include <commands/trigger.h>
 #include <libpq/pqsignal.h>
+#include <postmaster/postmaster.h>
 #include <utils/lsyscache.h>
 #include <utils/syscache.h>
 #include <utils/builtins.h>
@@ -515,6 +517,50 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 
 		if (CALLED_AS_TRIGGER(fcinfo))
 			set_trigger_data_envvars((TriggerData *) fcinfo->context);
+
+		setenv("PGAPPNAME", "plsh", 1);
+		unsetenv("PGCLIENTENCODING");
+		setenv("PGDATABASE", get_database_name(MyDatabaseId), 1);
+#if PG_VERSION_NUM >= 90300
+		if (Unix_socket_directories)
+		{
+			char       *rawstring;
+			List       *elemlist;
+
+			rawstring = pstrdup(Unix_socket_directories);
+
+			if (!SplitDirectoriesString(rawstring, ',', &elemlist))
+				ereport(WARNING,
+						(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+						 errmsg("invalid list syntax for \"unix_socket_directories\"")));
+
+			if (list_length(elemlist))
+				setenv("PGHOST", linitial(elemlist), 1);
+			else
+				setenv("PGHOST", "localhost", 0);
+		}
+#else
+		if (UnixSocketDir && *UnixSocketDir)
+			setenv("PGHOST", UnixSocketDir, 1);
+#endif
+		else
+			setenv("PGHOST", "localhost", 0);
+
+		{
+			char buf[16];
+			sprintf(buf, "%u", PostPortNumber);
+			setenv("PGPORT", buf, 1);
+		}
+
+		{
+			char buf[MAXPGPATH];
+			char *p;
+
+			strlcpy(buf, my_exec_path, sizeof(buf));
+			p = strrchr(buf, '/');
+			snprintf(p, sizeof(buf) - (p - buf), ":%s", getenv("PATH"));
+			setenv("PATH", buf, 1);
+		}
 
 		execv(arguments[0], arguments);
 		ereport(ERROR,

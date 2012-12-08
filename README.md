@@ -21,9 +21,9 @@ with an error and the message is printed.  If the script does not exit
 with status 0 then an error is raised as well.
 
 The shell script can do anything you want, but you can't access the
-database.  Trigger functions are also possible, but they can't change
-the rows.  Needless to say, this language should not be declared as
-`TRUSTED`.
+database directly.  Trigger functions are also possible, but they
+can't change the rows.  Needless to say, this language should not be
+declared as `TRUSTED`.
 
 The distribution also contains a test suite in the directory `test/`,
 which contains a simplistic demonstration of the functionality.
@@ -31,6 +31,20 @@ which contains a simplistic demonstration of the functionality.
 I'm interested if anyone is using this.
 
 Peter Eisentraut <peter@eisentraut.org>
+
+Database Access
+---------------
+
+You can't access the database directory from PL/sh through something
+like SPI, but PL/sh sets up libpq environment variables so that you
+can easily call `psql` back into the same database, for example
+
+    CREATE FUNCTION query (x int) RETURNS text
+    LANGUAGE plsh
+    AS $$
+    #!/bin/sh
+    psql -At -c "select b from pbar where a = $1"
+    $$;
 
 Triggers
 --------

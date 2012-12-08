@@ -15,7 +15,7 @@ EXTENSION = plsh
 
 EXTRA_CLEAN = plsh--$(extension_version).sql
 
-REGRESS = init function trigger crlf
+REGRESS = init function trigger crlf psql
 REGRESS_OPTS = --inputdir=test
 
 
