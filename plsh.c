@@ -552,6 +552,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 			setenv("PGPORT", buf, 1);
 		}
 
+		if (getenv("PATH"))
 		{
 			char buf[MAXPGPATH];
 			char *p;

@@ -1,6 +1,5 @@
 CREATE TABLE pbar (a int, b text);
 INSERT INTO pbar VALUES (1, 'one'), (2, 'two');
-
 CREATE FUNCTION query (x int) RETURNS text
 LANGUAGE plsh
 AS $$
@@ -11,5 +10,5 @@ else
     echo 'no PATH?' 1>&2
 fi
 $$;
-
 SELECT query(1);
+ERROR:  query: no PATH?

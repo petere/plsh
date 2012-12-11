@@ -4,7 +4,11 @@ CREATE FUNCTION query (x int) RETURNS text
 LANGUAGE plsh
 AS $$
 #!/bin/sh
-psql -At -c "select b from pbar where a = $1"
+if which psql >/dev/null; then
+    psql -At -c "select b from pbar where a = $1"
+else
+    echo 'no PATH?' 1>&2
+fi
 $$;
 SELECT query(1);
  query 

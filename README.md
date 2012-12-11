@@ -46,6 +46,8 @@ can easily call `psql` back into the same database, for example
     psql -At -c "select b from pbar where a = $1"
     $$;
 
+Note: The "bin" directory is prepended to the path, but only if the `PATH` environment variable is already set.
+
 Triggers
 --------
 
