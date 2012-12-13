@@ -198,17 +198,6 @@ split_string(char *argv[], int *argcp, char *string)
 
 
 /*
- * Make a safe temporary file.  Fill in for portability later...
- */
-static int
-my_mktemp(char *name)
-{
-	return mkstemp(name);
-}
-
-
-
-/*
  * Set environment variables corresponding to trigger data
  */
 static void
@@ -363,7 +352,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	/* copy source to temp file */
 
 	strcpy(tempfile, "/tmp/.pgplsh-XXXXXX");
-	fd = my_mktemp(tempfile);
+	fd = mkstemp(tempfile);
 	if (fd == -1)
 		ereport(ERROR,
 				(errcode_for_file_access(),
