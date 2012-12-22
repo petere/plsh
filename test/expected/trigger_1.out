@@ -21,6 +21,9 @@ CREATE TRIGGER testtrigger3 AFTER DELETE ON pfoo
     FOR EACH STATEMENT EXECUTE PROCEDURE shtrigger('dummy3');
 CREATE TRIGGER testtrigger4 AFTER TRUNCATE ON pfoo
     FOR EACH STATEMENT EXECUTE PROCEDURE shtrigger('dummy4');
+ERROR:  syntax error at or near "TRUNCATE"
+LINE 1: CREATE TRIGGER testtrigger4 AFTER TRUNCATE ON pfoo
+                                          ^
 INSERT INTO pfoo VALUES (0, null);
 INSERT INTO pfoo VALUES (1, 'one');
 INSERT INTO pfoo VALUES (2, 'two');
@@ -84,14 +87,6 @@ Arg is 'dummy3'
 PLSH_TG_LEVEL=STATEMENT
 PLSH_TG_NAME=testtrigger3
 PLSH_TG_OP=DELETE
-PLSH_TG_TABLE_NAME=pfoo
-PLSH_TG_TABLE_SCHEMA=public
-PLSH_TG_WHEN=AFTER
----
-Arg is 'dummy4'
-PLSH_TG_LEVEL=STATEMENT
-PLSH_TG_NAME=testtrigger4
-PLSH_TG_OP=TRUNCATE
 PLSH_TG_TABLE_NAME=pfoo
 PLSH_TG_TABLE_SCHEMA=public
 PLSH_TG_WHEN=AFTER

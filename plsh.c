@@ -431,8 +431,12 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 			returntuple = trigdata->tg_trigtuple;
 		else if (TRIGGER_FIRED_BY_UPDATE(trigdata->tg_event))
 			returntuple = trigdata->tg_newtuple;
+#ifdef TRIGGER_FIRED_BY_TRUNCATE
+		else if (TRIGGER_FIRED_BY_TRUNCATE(trigdata->tg_event))
+			returntuple = trigdata->tg_trigtuple;
+#endif
 		else
-			elog(ERROR, "unrecognized trigger action: not INSERT, DELETE, or UPDATE");
+			elog(ERROR, "unrecognized trigger action: not INSERT, DELETE, UPDATE, or TRUNCATE");
 	}
 	else /* not trigger */
 	{
