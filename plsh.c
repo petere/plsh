@@ -335,7 +335,9 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	s = palloc(len + 1);
 	strncpy(s, rest, len);
 	s[len] = '\0';
-	rest += len + 1;
+	rest += len;
+	if (*rest)
+		rest++;
 
 	ac = 0;
 	split_string(arguments, &ac, s);
