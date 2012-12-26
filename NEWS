@@ -1,3 +1,14 @@
+* Version 1.20121226
+
+- Works with PostgreSQL 8.3 through 9.3devel.
+
+- Libpq environment variables and PATH are set to simplify calling
+  back into the database.
+
+- The TMPDIR environment variable is used if set, instead of /tmp.
+
+- TRUNCATE triggers are supported.
+
 * Version 1.20121018
 
 - Works with PostgreSQL 8.3 through 9.3devel.  Earlier versions are no
