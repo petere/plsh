@@ -33,9 +33,7 @@
 #include <errno.h>
 
 
-#ifdef PG_MODULE_MAGIC
 PG_MODULE_MAGIC;
-#endif
 
 
 #define _textout(x) (DatumGetCString(DirectFunctionCall1(textout, PointerGetDatum(&x))))
@@ -449,13 +447,8 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 			if (PG_ARGISNULL(i))
 				s = "";
 			else
-#if CATALOG_VERSION_NO >= 200503281 /* 8.1devel or later */
 				s = type_to_cstring(PG_GETARG_DATUM(i),
 									pg_proc_entry->proargtypes.values[i]);
-#else
-				s = type_to_cstring(PG_GETARG_DATUM(i),
-									pg_proc_entry->proargtypes[i]);
-#endif
 
 			elog(DEBUG2, "arg %d is \"%s\"", i, s);
 
