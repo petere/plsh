@@ -95,40 +95,6 @@ type_to_cstring(Datum input, Oid typeoid)
 
 
 /*
- * SIGCHLD handler
- */
-static volatile pid_t child_pid;
-static int child_status;
-
-
-#if 0
-static void
-sigchld_handler(int signum)
-{
-	pid_t pid;
-	int status, serrno;
-	serrno = errno;
-
-	while (1)
-	{
-		pid = waitpid (WAIT_ANY, &status, WNOHANG);
-		if (pid < 0)
-		{
-			perror ("waitpid");
-			break;
-		}
-		if (pid == 0)
-			break;
-		if (pid == child_pid)
-			child_status = status;
-	}
-	errno = serrno;
-}
-#endif
-
-
-
-/*
  * Read from "file" until EOF or error.  Return the content in
  * palloc'ed memory.  On error return NULL and set errno.
  */
@@ -246,10 +212,12 @@ set_trigger_data_envvars(TriggerData *trigdata)
 /*
  * Block and wait for the script to finish
  */
-static void
-wait_and_cleanup(const char *tempfile)
+static int
+wait_and_cleanup(pid_t child_pid, const char *tempfile)
 {
 	pid_t dead;
+	int child_status;
+
 	do
 		dead = wait(&child_status);
 	while (dead > 0 && dead != child_pid);
@@ -260,6 +228,8 @@ wait_and_cleanup(const char *tempfile)
 		ereport(ERROR,
 				(errcode_for_file_access(),
 				 errmsg("wait failed: %m")));
+
+	return child_status;
 }
 
 
@@ -290,6 +260,8 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	HeapTuple returntuple = NULL;
 	Datum prosrcdatum;
 	bool isnull;
+	pid_t child_pid;
+	int child_status;
 
 	proctuple = SearchSysCache(PROCOID, ObjectIdGetDatum(function_oid), 0, 0, 0);
 	if (!HeapTupleIsValid(proctuple))
@@ -479,10 +451,6 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 				 errmsg("could not make pipe: %m")));
 	}
 
-#if 0
-	pqsignal(SIGCHLD, SIG_DFL);
-#endif
-
 	child_pid = fork();
 
 	if (child_pid == -1)		/* fork failed */
@@ -575,7 +543,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	{
 		close(stdout_pipe[0]);
 		close(stderr_pipe[0]);
-		wait_and_cleanup(tempfile);
+		wait_and_cleanup(child_pid, tempfile);
 		ereport(ERROR,
 				(errcode_for_file_access(),
 				 errmsg("could not open file stream to stdout pipe: %m")));
@@ -586,7 +554,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	if (!stdout_buffer)
 	{
 		close(stderr_pipe[0]);
-		wait_and_cleanup(tempfile);
+		wait_and_cleanup(child_pid, tempfile);
 		ereport(ERROR,
 				(errcode_for_file_access(),
 				 errmsg("could not read script's stdout: %m")));
@@ -607,7 +575,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	if (!file)
 	{
 		close(stderr_pipe[0]);
-		wait_and_cleanup(tempfile);
+		wait_and_cleanup(child_pid, tempfile);
 		ereport(ERROR,
 				(errcode_for_file_access(),
 				 errmsg("could not open file stream to stderr pipe: %m")));
@@ -617,7 +585,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	fclose(file);
 	if (!stderr_buffer)
 	{
-		wait_and_cleanup(tempfile);
+		wait_and_cleanup(child_pid, tempfile);
 		ereport(ERROR,
 				(errcode_for_file_access(),
 				 errmsg("could not read script's stderr: %m")));
@@ -629,16 +597,12 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 
 	if (stderr_buffer[0] != '\0')
 	{
-		wait_and_cleanup(tempfile);
+		wait_and_cleanup(child_pid, tempfile);
 		ereport(ERROR,
 				(errmsg("%s: %s", NameStr(pg_proc_entry->proname), stderr_buffer)));
 	}
 
-	wait_and_cleanup(tempfile);
-
-#if 0
-	pqsignal(SIGCHLD, SIG_IGN);
-#endif
+	child_status = wait_and_cleanup(child_pid, tempfile);
 
 	if (WIFEXITED(child_status))
 	{
