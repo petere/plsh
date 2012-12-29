@@ -35,7 +35,7 @@ Peter Eisentraut <peter@eisentraut.org>
 Database Access
 ---------------
 
-You can't access the database directory from PL/sh through something
+You can't access the database directly from PL/sh through something
 like SPI, but PL/sh sets up libpq environment variables so that you
 can easily call `psql` back into the same database, for example
 
