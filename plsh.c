@@ -160,6 +160,52 @@ split_string(char *argv[], int *argcp, char *string)
 }
 
 
+static char *
+write_to_tempfile(const char *data)
+{
+	char *tmpdir_envvar;
+	static char tempfile[MAXPGPATH];
+	int fd;
+	FILE * file;
+
+	if ((tmpdir_envvar = getenv("TMPDIR")))
+		snprintf(tempfile, sizeof(tempfile), "%s/plsh.XXXXXX", tmpdir_envvar);
+	else
+		strcpy(tempfile, "/tmp/plsh-XXXXXX");
+
+	fd = mkstemp(tempfile);
+	if (fd == -1)
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not create temporary file \"%s\": %m", tempfile)));
+
+	file = fdopen(fd, "w");
+	if (!file)
+	{
+		close(fd);
+		remove(tempfile);
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not open file stream to temporary file: %m")));
+	}
+
+	fprintf(file, "%s", data);
+	if (ferror(file))
+	{
+		fclose(file);
+		remove(tempfile);
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not write script to temporary file: %m")));
+	}
+
+	fclose(file);
+
+	elog(DEBUG2, "source code is now in file \"%s\"", tempfile);
+
+	return tempfile;
+}
+
 
 /*
  * Set environment variables corresponding to trigger data
@@ -244,9 +290,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	char * sourcecode;
 	char * rest;
 	size_t len;
-	char tempfile[MAXPGPATH];
-	char *tmpdir_envvar;
-	int fd;
+	char *tempfile;
 	FILE * file;
 	int stdout_pipe[2];
 	int stderr_pipe[2];
@@ -322,42 +366,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 		PG_RETURN_VOID();
 	}
 
-	/* copy source to temp file */
-
-	if ((tmpdir_envvar = getenv("TMPDIR")))
-		snprintf(tempfile, sizeof(tempfile), "%s/plsh.XXXXXX", tmpdir_envvar);
-	else
-		strcpy(tempfile, "/tmp/plsh-XXXXXX");
-	fd = mkstemp(tempfile);
-	if (fd == -1)
-		ereport(ERROR,
-				(errcode_for_file_access(),
-				 errmsg("could not create temporary file \"%s\": %m", tempfile)));
-
-	file = fdopen(fd, "w");
-	if (!file)
-	{
-		close(fd);
-		remove(tempfile);
-		ereport(ERROR,
-				(errcode_for_file_access(),
-				 errmsg("could not open file stream to temporary file: %m")));
-	}
-
-	fprintf(file, "%s", rest);
-	if (ferror(file))
-	{
-		fclose(file);
-		remove(tempfile);
-		ereport(ERROR,
-				(errcode_for_file_access(),
-				 errmsg("could not write script to temporary file: %m")));
-	}
-
-	fclose(file);
-
-	elog(DEBUG2, "source code is now in file \"%s\"", tempfile);
-
+	tempfile = write_to_tempfile(rest);
 
 	/* evaluate arguments */
 
