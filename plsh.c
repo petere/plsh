@@ -256,6 +256,59 @@ set_trigger_data_envvars(TriggerData *trigdata)
 
 
 /*
+ * Set environment variables for libpq access
+ */
+void
+set_libpq_envvars(void)
+{
+	setenv("PGAPPNAME", "plsh", 1);
+	unsetenv("PGCLIENTENCODING");
+	setenv("PGDATABASE", get_database_name(MyDatabaseId), 1);
+#if PG_VERSION_NUM >= 90300
+	if (Unix_socket_directories)
+	{
+		char       *rawstring;
+		List       *elemlist;
+
+		rawstring = pstrdup(Unix_socket_directories);
+
+		if (!SplitDirectoriesString(rawstring, ',', &elemlist))
+			ereport(WARNING,
+					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+					 errmsg("invalid list syntax for \"unix_socket_directories\"")));
+
+		if (list_length(elemlist))
+			setenv("PGHOST", linitial(elemlist), 1);
+		else
+			setenv("PGHOST", "localhost", 0);
+	}
+#else
+	if (UnixSocketDir && *UnixSocketDir)
+		setenv("PGHOST", UnixSocketDir, 1);
+#endif
+	else
+		setenv("PGHOST", "localhost", 0);
+
+	{
+		char buf[16];
+		sprintf(buf, "%u", PostPortNumber);
+		setenv("PGPORT", buf, 1);
+	}
+
+	if (getenv("PATH"))
+	{
+		char buf[MAXPGPATH];
+		char *p;
+
+		strlcpy(buf, my_exec_path, sizeof(buf));
+		p = strrchr(buf, '/');
+		snprintf(p, sizeof(buf) - (p - buf), ":%s", getenv("PATH"));
+		setenv("PATH", buf, 1);
+	}
+}
+
+
+/*
  * Block and wait for the script to finish
  */
 static int
@@ -487,50 +540,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 		if (CALLED_AS_TRIGGER(fcinfo))
 			set_trigger_data_envvars((TriggerData *) fcinfo->context);
 
-		setenv("PGAPPNAME", "plsh", 1);
-		unsetenv("PGCLIENTENCODING");
-		setenv("PGDATABASE", get_database_name(MyDatabaseId), 1);
-#if PG_VERSION_NUM >= 90300
-		if (Unix_socket_directories)
-		{
-			char       *rawstring;
-			List       *elemlist;
-
-			rawstring = pstrdup(Unix_socket_directories);
-
-			if (!SplitDirectoriesString(rawstring, ',', &elemlist))
-				ereport(WARNING,
-						(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-						 errmsg("invalid list syntax for \"unix_socket_directories\"")));
-
-			if (list_length(elemlist))
-				setenv("PGHOST", linitial(elemlist), 1);
-			else
-				setenv("PGHOST", "localhost", 0);
-		}
-#else
-		if (UnixSocketDir && *UnixSocketDir)
-			setenv("PGHOST", UnixSocketDir, 1);
-#endif
-		else
-			setenv("PGHOST", "localhost", 0);
-
-		{
-			char buf[16];
-			sprintf(buf, "%u", PostPortNumber);
-			setenv("PGPORT", buf, 1);
-		}
-
-		if (getenv("PATH"))
-		{
-			char buf[MAXPGPATH];
-			char *p;
-
-			strlcpy(buf, my_exec_path, sizeof(buf));
-			p = strrchr(buf, '/');
-			snprintf(p, sizeof(buf) - (p - buf), ":%s", getenv("PATH"));
-			setenv("PATH", buf, 1);
-		}
+		set_libpq_envvars();
 
 		execv(arguments[0], arguments);
 		ereport(ERROR,
