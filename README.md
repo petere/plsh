@@ -64,7 +64,7 @@ through environment variables (analogous to PL/pgSQL):
 Installation
 ------------
 
-You need to have PostgreSQL 8.0 or later, and you need to have the
+You need to have PostgreSQL 8.3 or later, and you need to have the
 server include files installed.
 
 To build and install PL/sh, use this procedure:
