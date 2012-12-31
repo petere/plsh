@@ -94,6 +94,82 @@ type_to_cstring(Datum input, Oid typeoid)
 
 
 
+#define SPLIT_MAX 64
+
+/*
+ * Split the "string" at space boundaries.  The number of resulting
+ * strings is in argcp, the actual strings in argv.  argcp should be
+ * allocated to expect SPLIT_MAX strings.  "string" will be clobbered.
+ */
+static void
+split_string(char *argv[], int *argcp, char *string)
+{
+	char * s = string;
+
+	while (s && *s && *argcp < SPLIT_MAX)
+	{
+		while (*s == ' ')
+			++s;
+		if (*s == '\0')
+			break;
+		argv[(*argcp)++] = s;
+		while (*s && *s != ' ')
+			++s;
+		if (*s)
+			*s++ = '\0';
+	}
+}
+
+
+
+/*
+ * Find shell and arguments in source code
+ */
+void
+parse_shell_and_arguments(const char *sourcecode, int *argcp, char **arguments, const char **restp)
+{
+	const char *rest;
+	size_t len;
+	char * s;
+
+	/*
+	 * Accept one blank line at the start, to allow coding like this:
+	 *   CREATE FUNCTION .... AS '
+	 *   #!/bin/sh
+	 *   ...
+	 *   ' LANGUAGE plsh;
+	 */
+	while (sourcecode[0] == '\n' || sourcecode[0] == '\r')
+		sourcecode++;
+
+	elog(DEBUG2, "source code of function:\n%s", sourcecode);
+
+	if (strlen(sourcecode) < 3
+		|| (strncmp(sourcecode, "#!/", 3) != 0
+			&& strncmp(sourcecode, "#! /", 4) != 0))
+		ereport(ERROR,
+				(errcode(ERRCODE_SYNTAX_ERROR),
+				 errmsg("invalid start of script: %-.10s...", sourcecode),
+				 errdetail("Script code must start with \"#!/\" or \"#! /\".")));
+
+	rest = sourcecode + strcspn(sourcecode, "/");
+	len = strcspn(rest, "\n\r");
+	s = palloc(len + 1);
+	strncpy(s, rest, len);
+	s[len] = '\0';
+	rest += len;
+	if (*rest)
+		rest++;
+
+	*argcp = 0;
+	split_string(arguments, argcp, s);
+	*restp = rest;
+
+	elog(DEBUG2, "using shell \"%s\"", arguments[0]);
+}
+
+
+
 /*
  * Read from "file" until EOF or error.  Return the content in
  * palloc'ed memory.  On error return NULL and set errno.
@@ -131,33 +207,6 @@ read_from_file(FILE * file)
 	return buffer;
 }
 
-
-
-#define SPLIT_MAX 64
-
-/*
- * Split the "string" at space boundaries.  The number of resulting
- * strings is in argcp, the actual strings in argv.  argcp should be
- * allocated to expect SPLIT_MAX strings.  "string" will be clobbered.
- */
-static void
-split_string(char *argv[], int *argcp, char *string)
-{
-	char * s = string;
-
-	while (s && *s && *argcp < SPLIT_MAX)
-	{
-		while (*s == ' ')
-			++s;
-		if (*s == '\0')
-			break;
-		argv[(*argcp)++] = s;
-		while (*s && *s != ' ')
-			++s;
-		if (*s)
-			*s++ = '\0';
-	}
-}
 
 
 static char *
@@ -340,20 +389,19 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 {
 	HeapTuple proctuple;
 	Form_pg_proc pg_proc_entry;
-	char * sourcecode;
-	char * rest;
+	const char * sourcecode;
+	const char * rest;
 	size_t len;
 	char *tempfile;
 	FILE * file;
 	int stdout_pipe[2];
 	int stderr_pipe[2];
 	int i;
-	int ac;
+	int argc;
 	char * arguments[FUNC_MAX_ARGS + 2];
 	char * stdout_buffer;
 	char * stderr_buffer;
 	bool return_null;
-	char * s;
 	HeapTuple returntuple = NULL;
 	Datum prosrcdatum;
 	bool isnull;
@@ -368,49 +416,9 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	if (isnull)
 		elog(ERROR, "null prosrc");
 
-	sourcecode = pstrdup(DatumGetCString(DirectFunctionCall1(textout,
-															 prosrcdatum)));
+	sourcecode = DatumGetCString(DirectFunctionCall1(textout, prosrcdatum));
 
-	pg_proc_entry = (Form_pg_proc) GETSTRUCT(proctuple);
-
-
-	/* find shell and arguments */
-
-	/*
-	 * Accept one blank line at the start, to allow coding like this:
-	 *   CREATE FUNCTION .... AS '
-	 *   #!/bin/sh
-	 *   ...
-	 *   ' LANGUAGE plsh;
-	 */
-	while (sourcecode[0] == '\n' || sourcecode[0] == '\r')
-		sourcecode++;
-
-	elog(DEBUG2, "source code of function %u:\n%s", function_oid,
-		 sourcecode);
-
-	if (strlen(sourcecode) < 3
-		|| (strncmp(sourcecode, "#!/", 3) != 0
-			&& strncmp(sourcecode, "#! /", 4) != 0))
-		ereport(ERROR,
-				(errcode(ERRCODE_SYNTAX_ERROR),
-				 errmsg("invalid start of script: %-.10s...", sourcecode),
-				 errdetail("Script code must start with \"#!/\" or \"#! /\".")));
-
-	rest = sourcecode + strcspn(sourcecode, "/");
-	len = strcspn(rest, "\n\r");
-	s = palloc(len + 1);
-	strncpy(s, rest, len);
-	s[len] = '\0';
-	rest += len;
-	if (*rest)
-		rest++;
-
-	ac = 0;
-	split_string(arguments, &ac, s);
-
-	elog(DEBUG2, "using shell \"%s\"", arguments[0]);
-
+	parse_shell_and_arguments(sourcecode, &argc, arguments, &rest);
 
 	/* validation stops here */
 	if (!execute)
@@ -420,10 +428,11 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	}
 
 	tempfile = write_to_tempfile(rest);
+	arguments[argc++] = tempfile;
 
 	/* evaluate arguments */
 
-	arguments[ac++] = tempfile;
+	pg_proc_entry = (Form_pg_proc) GETSTRUCT(proctuple);
 
 	if (CALLED_AS_TRIGGER(fcinfo))
 	{
@@ -435,7 +444,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 		/* first the CREATE TRIGGER fixed arguments */
 		for (i = 0; i < trigger->tgnargs; i++)
 		{
-			arguments[ac++] = trigger->tgargs[i];
+			arguments[argc++] = trigger->tgargs[i];
 		}
 
 		if (TRIGGER_FIRED_FOR_ROW(trigdata->tg_event))
@@ -454,7 +463,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 				elog(DEBUG2, "arg %d is \"%s\" (type %u)", i, s,
 					 tupdesc->attrs[i]->atttypid);
 
-				arguments[ac++] = s;
+				arguments[argc++] = s;
 			}
 
 		/* since we can't alter the tuple anyway, set up a return
@@ -486,12 +495,12 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 
 			elog(DEBUG2, "arg %d is \"%s\"", i, s);
 
-			arguments[ac++] = s;
+			arguments[argc++] = s;
 		}
 	}
 
 	/* terminate list */
-	arguments[ac] = NULL;
+	arguments[argc] = NULL;
 
 
 	/* start process voodoo */
