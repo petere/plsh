@@ -48,3 +48,11 @@ SELECT shell_args2();
 CREATE FUNCTION shell_args3() RETURNS text LANGUAGE plsh AS '
 #!/bin/sh ';
 SELECT shell_args3();
+
+
+CREATE FUNCTION perl_concat(text, text) RETURNS text LANGUAGE plsh AS '
+#!/usr/bin/perl
+
+print $ARGV[0] . $ARGV[1];
+';
+SELECT perl_concat('pe', 'rl');

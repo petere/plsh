@@ -65,3 +65,14 @@ SELECT shell_args3();
  
 (1 row)
 
+CREATE FUNCTION perl_concat(text, text) RETURNS text LANGUAGE plsh AS '
+#!/usr/bin/perl
+
+print $ARGV[0] . $ARGV[1];
+';
+SELECT perl_concat('pe', 'rl');
+ perl_concat 
+-------------
+ perl
+(1 row)
+
