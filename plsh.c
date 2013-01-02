@@ -39,6 +39,9 @@ PG_MODULE_MAGIC;
 #define _textout(x) (DatumGetCString(DirectFunctionCall1(textout, PointerGetDatum(&x))))
 
 
+static char * handler_internal2(const char *tempfile, char * const * arguments, const char *proname, TriggerData *trigger_data);
+
+
 
 /*
  * Convert the C string "input" to a Datum of type "typeoid".
@@ -391,22 +394,14 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	Form_pg_proc pg_proc_entry;
 	const char * sourcecode;
 	const char * rest;
-	size_t len;
 	char *tempfile;
-	FILE * file;
-	int stdout_pipe[2];
-	int stderr_pipe[2];
 	int i;
 	int argc;
 	char * arguments[FUNC_MAX_ARGS + 2];
-	char * stdout_buffer;
-	char * stderr_buffer;
-	bool return_null;
+	char * ret;
 	HeapTuple returntuple = NULL;
 	Datum prosrcdatum;
 	bool isnull;
-	pid_t child_pid;
-	int child_status;
 
 	proctuple = SearchSysCache(PROCOID, ObjectIdGetDatum(function_oid), 0, 0, 0);
 	if (!HeapTupleIsValid(proctuple))
@@ -502,6 +497,41 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	/* terminate list */
 	arguments[argc] = NULL;
 
+	ret = handler_internal2(tempfile,
+							arguments,
+							NameStr(pg_proc_entry->proname),
+							CALLED_AS_TRIGGER(fcinfo) ? (TriggerData *) fcinfo->context : NULL);
+
+
+	ReleaseSysCache(proctuple);
+
+	if (CALLED_AS_TRIGGER(fcinfo))
+	{
+		PG_RETURN_DATUM(PointerGetDatum(returntuple));
+	}
+	else
+	{
+		if (ret)
+			PG_RETURN_DATUM(cstring_to_type(ret, pg_proc_entry->prorettype));
+		else
+			PG_RETURN_NULL();
+	}
+}
+
+
+
+static char *
+handler_internal2(const char *tempfile, char * const * arguments, const char *proname, TriggerData *trigger_data)
+{
+	int stdout_pipe[2];
+	int stderr_pipe[2];
+	pid_t child_pid;
+	int child_status;
+	FILE * file;
+	char * stdout_buffer;
+	char * stderr_buffer;
+	size_t len;
+	bool return_null;
 
 	/* start process voodoo */
 
@@ -546,8 +576,8 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 		close(stdout_pipe[1]);
 		close(stderr_pipe[1]);
 
-		if (CALLED_AS_TRIGGER(fcinfo))
-			set_trigger_data_envvars((TriggerData *) fcinfo->context);
+		if (trigger_data)
+			set_trigger_data_envvars(trigger_data);
 
 		set_libpq_envvars();
 
@@ -627,7 +657,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	{
 		wait_and_cleanup(child_pid, tempfile);
 		ereport(ERROR,
-				(errmsg("%s: %s", NameStr(pg_proc_entry->proname), stderr_buffer)));
+				(errmsg("%s: %s", proname, stderr_buffer)));
 	}
 
 	child_status = wait_and_cleanup(child_pid, tempfile);
@@ -646,20 +676,10 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 						(int)WTERMSIG(child_status))));
 	}
 
-	ReleaseSysCache(proctuple);
-
-	if (CALLED_AS_TRIGGER(fcinfo))
-	{
-		PG_RETURN_DATUM(PointerGetDatum(returntuple));
-	}
+	if (return_null)
+		return NULL;
 	else
-	{
-		if (return_null)
-			PG_RETURN_NULL();
-		else
-			PG_RETURN_DATUM(cstring_to_type(stdout_buffer,
-											pg_proc_entry->prorettype));
-	}
+		return stdout_buffer;
 }
 
 
@@ -687,3 +707,29 @@ plsh_validator(PG_FUNCTION_ARGS)
 {
 	return handler_internal(PG_GETARG_OID(0), fcinfo, false);
 }
+
+
+
+#if CATALOG_VERSION_NO >= 200909221
+/*
+ * Inline handler
+ */
+PG_FUNCTION_INFO_V1(plsh_inline_handler);
+
+Datum
+plsh_inline_handler(PG_FUNCTION_ARGS)
+{
+	InlineCodeBlock *codeblock = (InlineCodeBlock *) DatumGetPointer(PG_GETARG_DATUM(0));
+	int argc;
+	char * arguments[FUNC_MAX_ARGS + 2];
+	const char *rest;
+	char *tempfile;
+
+	parse_shell_and_arguments(codeblock->source_text, &argc, arguments, &rest);
+	tempfile = write_to_tempfile(rest);
+	arguments[argc++] = tempfile;
+	arguments[argc] = NULL;
+	handler_internal2(tempfile, arguments, "inline code block", NULL);
+	PG_RETURN_VOID();
+}
+#endif
