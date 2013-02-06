@@ -61,6 +61,13 @@ through environment variables (analogous to PL/pgSQL):
 * `PLSH_TG_TABLE_NAME`: name of the table the trigger is acting on
 * `PLSH_TG_TABLE_SCHEMA`: schema name of the table the trigger is acting on
 
+Inline Handler
+--------------
+
+PL/sh supports the `DO` command.  For example:
+
+    DO E'#!/bin/sh\nrm -f /tmp/file' LANGUAGE plsh;
+
 Installation
 ------------
 
