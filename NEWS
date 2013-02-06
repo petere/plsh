@@ -1,3 +1,12 @@
+* Version 1.20130205
+
+- Works with PostgreSQL 8.3 through 9.3devel.
+
+- Added inline handler (DO support).
+
+- The extension is now really relocatable and no longer installed into
+  pg_catalog.  This was broken before.
+
 * Version 1.20121226
 
 - Works with PostgreSQL 8.3 through 9.3devel.
