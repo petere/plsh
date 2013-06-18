@@ -10,14 +10,10 @@
 #include <fmgr.h>
 #include <miscadmin.h>
 #include <access/heapam.h>
-#if defined(PG_VERSION_NUM) && PG_VERSION_NUM >= 90300
-#include <access/htup_details.h>
-#endif
 #include <catalog/catversion.h>
 #include <catalog/pg_proc.h>
 #include <catalog/pg_type.h>
 #include <commands/dbcommands.h>
-#include <commands/event_trigger.h>
 #include <commands/trigger.h>
 #include <libpq/pqsignal.h>
 #include <postmaster/postmaster.h>
@@ -25,6 +21,11 @@
 #include <utils/syscache.h>
 #include <utils/builtins.h>
 #include <utils/rel.h>
+#if defined(PG_VERSION_NUM) && PG_VERSION_NUM >= 90300
+#include <access/htup_details.h>
+#include <commands/event_trigger.h>
+#define HAVE_EVENT_TRIGGERS 1
+#endif
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -38,6 +39,12 @@ PG_MODULE_MAGIC;
 
 
 #define _textout(x) (DatumGetCString(DirectFunctionCall1(textout, PointerGetDatum(&x))))
+
+
+#ifndef HAVE_EVENT_TRIGGERS
+typedef void EventTriggerData;
+#define CALLED_AS_EVENT_TRIGGER(x) 0
+#endif
 
 
 static char * handler_internal2(const char *tempfile, char * const * arguments, const char *proname, TriggerData *trigger_data, EventTriggerData *event_trigger_data);
@@ -314,8 +321,10 @@ set_trigger_data_envvars(TriggerData *trigdata)
 static void
 set_event_trigger_data_envvars(EventTriggerData *evttrigdata)
 {
+#ifdef HAVE_EVENT_TRIGGERS
 	setenv("PLSH_TG_EVENT", evttrigdata->event, 1);
 	setenv("PLSH_TG_TAG", evttrigdata->tag, 1);
+#endif
 }
 
 
