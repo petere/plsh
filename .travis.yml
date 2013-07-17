@@ -1,2 +1,6 @@
 language: c
-script: make && sudo make install && make installcheck || { cat regression.diffs; exit 1; }
+before_install:
+  - wget https://gist.github.com/petere/5893799/raw/22814fa7d28c0a81434677ab68236f8565644648/apt.postgresql.org.sh
+  - wget https://gist.github.com/petere/6023944/raw/50cfc5be1a61553ef11fabdc9e90da1574b00fdf/pg-travis-multiversion-test.sh
+  - sudo sh ./apt.postgresql.org.sh
+script: bash ./pg-travis-multiversion-test.sh
