@@ -61,6 +61,15 @@ through environment variables (analogous to PL/pgSQL):
 * `PLSH_TG_TABLE_NAME`: name of the table the trigger is acting on
 * `PLSH_TG_TABLE_SCHEMA`: schema name of the table the trigger is acting on
 
+Event Triggers
+--------------
+
+In an event trigger procedure, the event trigger data is available to
+the script through the following environment variables:
+
+* `PLSH_TG_EVENT`: event name
+* `PLSH_TG_TAG`: command tag
+
 Inline Handler
 --------------
 
