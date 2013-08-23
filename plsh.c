@@ -10,9 +10,6 @@
 #include <fmgr.h>
 #include <miscadmin.h>
 #include <access/heapam.h>
-#if defined(PG_VERSION_NUM) && PG_VERSION_NUM >= 90300
-#include <access/htup_details.h>
-#endif
 #include <catalog/catversion.h>
 #include <catalog/pg_proc.h>
 #include <catalog/pg_type.h>
@@ -24,6 +21,11 @@
 #include <utils/syscache.h>
 #include <utils/builtins.h>
 #include <utils/rel.h>
+#if defined(PG_VERSION_NUM) && PG_VERSION_NUM >= 90300
+#include <access/htup_details.h>
+#include <commands/event_trigger.h>
+#define HAVE_EVENT_TRIGGERS 1
+#endif
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -39,7 +41,13 @@ PG_MODULE_MAGIC;
 #define _textout(x) (DatumGetCString(DirectFunctionCall1(textout, PointerGetDatum(&x))))
 
 
-static char * handler_internal2(const char *tempfile, char * const * arguments, const char *proname, TriggerData *trigger_data);
+#ifndef HAVE_EVENT_TRIGGERS
+typedef void EventTriggerData;
+#define CALLED_AS_EVENT_TRIGGER(x) 0
+#endif
+
+
+static char * handler_internal2(const char *tempfile, char * const * arguments, const char *proname, TriggerData *trigger_data, EventTriggerData *event_trigger_data);
 
 
 
@@ -308,6 +316,19 @@ set_trigger_data_envvars(TriggerData *trigdata)
 
 
 /*
+ * Set environment variables corresponding to event trigger data
+ */
+static void
+set_event_trigger_data_envvars(EventTriggerData *evttrigdata)
+{
+#ifdef HAVE_EVENT_TRIGGERS
+	setenv("PLSH_TG_EVENT", evttrigdata->event, 1);
+	setenv("PLSH_TG_TAG", evttrigdata->tag, 1);
+#endif
+}
+
+
+/*
  * Set environment variables for libpq access
  */
 void
@@ -476,6 +497,10 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 		else
 			elog(ERROR, "unrecognized trigger action: not INSERT, DELETE, UPDATE, or TRUNCATE");
 	}
+	else if (CALLED_AS_EVENT_TRIGGER(fcinfo))
+	{
+		/* nothing */
+	}
 	else /* not trigger */
 	{
 		for (i = 0; i < pg_proc_entry->pronargs; i++)
@@ -500,7 +525,8 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	ret = handler_internal2(tempfile,
 							arguments,
 							NameStr(pg_proc_entry->proname),
-							CALLED_AS_TRIGGER(fcinfo) ? (TriggerData *) fcinfo->context : NULL);
+							CALLED_AS_TRIGGER(fcinfo) ? (TriggerData *) fcinfo->context : NULL,
+							CALLED_AS_EVENT_TRIGGER(fcinfo) ? (EventTriggerData *) fcinfo->context : NULL);
 
 
 	ReleaseSysCache(proctuple);
@@ -508,6 +534,10 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 	if (CALLED_AS_TRIGGER(fcinfo))
 	{
 		PG_RETURN_DATUM(PointerGetDatum(returntuple));
+	}
+	else if (CALLED_AS_EVENT_TRIGGER(fcinfo))
+	{
+		PG_RETURN_NULL();
 	}
 	else
 	{
@@ -521,7 +551,8 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 
 
 static char *
-handler_internal2(const char *tempfile, char * const * arguments, const char *proname, TriggerData *trigger_data)
+handler_internal2(const char *tempfile, char * const * arguments, const char *proname,
+				  TriggerData *trigger_data, EventTriggerData *event_trigger_data)
 {
 	int stdout_pipe[2];
 	int stderr_pipe[2];
@@ -578,6 +609,8 @@ handler_internal2(const char *tempfile, char * const * arguments, const char *pr
 
 		if (trigger_data)
 			set_trigger_data_envvars(trigger_data);
+		if (event_trigger_data)
+			set_event_trigger_data_envvars(event_trigger_data);
 
 		set_libpq_envvars();
 
@@ -729,7 +762,7 @@ plsh_inline_handler(PG_FUNCTION_ARGS)
 	tempfile = write_to_tempfile(rest);
 	arguments[argc++] = tempfile;
 	arguments[argc] = NULL;
-	handler_internal2(tempfile, arguments, "inline code block", NULL);
+	handler_internal2(tempfile, arguments, "inline code block", NULL, NULL);
 	PG_RETURN_VOID();
 }
 #endif

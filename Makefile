@@ -3,6 +3,7 @@ PG_CONFIG = pg_config
 pg_version := $(word 2,$(shell $(PG_CONFIG) --version))
 extensions_supported = $(filter-out 6.% 7.% 8.% 9.0%,$(pg_version))
 inline_supported = $(filter-out 6.% 7.% 8.%,$(pg_version))
+event_trigger_supported = $(filter-out 6.% 7.% 8.% 9.0% 9.1% 9.2%,$(pg_version))
 
 
 MODULE_big = plsh
@@ -16,7 +17,7 @@ EXTENSION = plsh
 
 EXTRA_CLEAN = plsh.sql plsh--$(extension_version).sql
 
-REGRESS = init function trigger crlf psql $(if $(inline_supported),inline)
+REGRESS = init function trigger crlf psql $(if $(inline_supported),inline) $(if $(event_trigger_supported),event_trigger)
 REGRESS_OPTS = --inputdir=test
 
 
