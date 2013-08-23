@@ -1,3 +1,9 @@
+* Version 1.20130823
+
+- Works with PostgreSQL 8.3 through 9.3.
+
+- Added event trigger support (requires 9.3).
+
 * Version 1.20130205
 
 - Works with PostgreSQL 8.3 through 9.3devel.
