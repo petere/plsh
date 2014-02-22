@@ -738,6 +738,8 @@ PG_FUNCTION_INFO_V1(plsh_validator);
 Datum
 plsh_validator(PG_FUNCTION_ARGS)
 {
+	if (!CheckFunctionValidatorAccess(fcinfo->flinfo->fn_oid, PG_GETARG_OID(0)))
+		PG_RETURN_VOID();
 	return handler_internal(PG_GETARG_OID(0), fcinfo, false);
 }
 
