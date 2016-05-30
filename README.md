@@ -77,6 +77,15 @@ PL/sh supports the `DO` command.  For example:
 
     DO E'#!/bin/sh\nrm -f /tmp/file' LANGUAGE plsh;
 
+If data do not fit command line
+-------------------------------
+
+In some cases you may hit the limitations of command line passing data to PL/sh.
+In that case you may find useful plsh2 language which is similar to plsh with the first
+argument of a function is passed via stdin to the shell while the second and next arguments
+are passed as `$1`, `$2`, etc.
+
+
 Installation
 ------------
 
