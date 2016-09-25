@@ -5,7 +5,7 @@ LANGUAGE plsh
 AS $$
 #!/bin/sh
 if which psql >/dev/null; then
-    psql -At -c "select b from pbar where a = $1"
+    psql -AtX -c "select b from pbar where a = $1"
 else
     echo 'no PATH?' 1>&2
 fi
