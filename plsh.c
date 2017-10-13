@@ -21,7 +21,10 @@
 #include <utils/syscache.h>
 #include <utils/builtins.h>
 #include <utils/rel.h>
-#if defined(PG_VERSION_NUM) && PG_VERSION_NUM >= 90300
+#if PG_VERSION_NUM >= 100000
+#include <utils/varlena.h>
+#endif
+#if PG_VERSION_NUM >= 90300
 #include <access/htup_details.h>
 #include <commands/event_trigger.h>
 #define HAVE_EVENT_TRIGGERS 1
