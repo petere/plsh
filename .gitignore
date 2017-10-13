@@ -1,3 +1,5 @@
+*.o
+*.so
 plsh.sql
 plsh--?.sql
 /results/
