@@ -50,6 +50,11 @@ typedef void EventTriggerData;
 #endif
 
 
+#if PG_VERSION_NUM < 110000 && !defined(TupleDescAttr)
+#define TupleDescAttr(tupdesc, i) ((tupdesc)->attrs[(i)])
+#endif
+
+
 static char * handler_internal2(const char *tempfile, char * const * arguments, const char *proname, TriggerData *trigger_data, EventTriggerData *event_trigger_data);
 
 
@@ -477,10 +482,10 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 				if (isnull)
 					s = "";
 				else
-					s = type_to_cstring(attr, tupdesc->attrs[i]->atttypid);
+					s = type_to_cstring(attr, TupleDescAttr(tupdesc, i)->atttypid);
 
 				elog(DEBUG2, "arg %d is \"%s\" (type %u)", i, s,
-					 tupdesc->attrs[i]->atttypid);
+					 TupleDescAttr(tupdesc, i)->atttypid);
 
 				arguments[argc++] = s;
 			}
