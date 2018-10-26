@@ -491,7 +491,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 			}
 
 		/* since we can't alter the tuple anyway, set up a return
-           tuple right now */
+		   tuple right now */
 		if (TRIGGER_FIRED_BY_INSERT(trigdata->tg_event))
 			returntuple = trigdata->tg_trigtuple;
 		else if (TRIGGER_FIRED_BY_DELETE(trigdata->tg_event))
