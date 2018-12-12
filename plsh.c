@@ -21,7 +21,10 @@
 #include <utils/syscache.h>
 #include <utils/builtins.h>
 #include <utils/rel.h>
-#if defined(PG_VERSION_NUM) && PG_VERSION_NUM >= 90300
+#if PG_VERSION_NUM >= 100000
+#include <utils/varlena.h>
+#endif
+#if PG_VERSION_NUM >= 90300
 #include <access/htup_details.h>
 #include <commands/event_trigger.h>
 #define HAVE_EVENT_TRIGGERS 1
@@ -47,7 +50,12 @@ typedef void EventTriggerData;
 #endif
 
 
-static char * handler_internal2(const char *tempfile, char ** arguments, const char *proname, TriggerData *trigger_data, EventTriggerData *event_trigger_data, bool use_stdin);
+#if PG_VERSION_NUM < 110000 && !defined(TupleDescAttr)
+#define TupleDescAttr(tupdesc, i) ((tupdesc)->attrs[(i)])
+#endif
+
+
+  static char * handler_internal2(const char *tempfile, char ** arguments, const char *proname, TriggerData *trigger_data, EventTriggerData *event_trigger_data, bool use_stdin);
 
 
 
@@ -474,16 +482,16 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute, bool u
 				if (isnull)
 					s = "";
 				else
-					s = type_to_cstring(attr, tupdesc->attrs[i]->atttypid);
+					s = type_to_cstring(attr, TupleDescAttr(tupdesc, i)->atttypid);
 
 				elog(DEBUG2, "arg %d is \"%s\" (type %u)", i, s,
-					 tupdesc->attrs[i]->atttypid);
+					 TupleDescAttr(tupdesc, i)->atttypid);
 
 				arguments[argc++] = s;
 			}
 
 		/* since we can't alter the tuple anyway, set up a return
-           tuple right now */
+		   tuple right now */
 		if (TRIGGER_FIRED_BY_INSERT(trigdata->tg_event))
 			returntuple = trigdata->tg_trigtuple;
 		else if (TRIGGER_FIRED_BY_DELETE(trigdata->tg_event))

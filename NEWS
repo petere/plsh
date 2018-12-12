@@ -1,3 +1,7 @@
+* Version 1.20171014
+
+- Works with PostgreSQL 8.4 through 10.
+
 * Version 1.20140221
 
 - Security release (CVE-2014-0061)
