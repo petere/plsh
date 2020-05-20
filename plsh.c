@@ -331,7 +331,13 @@ set_event_trigger_data_envvars(EventTriggerData *evttrigdata)
 {
 #ifdef HAVE_EVENT_TRIGGERS
 	setenv("PLSH_TG_EVENT", evttrigdata->event, 1);
-	setenv("PLSH_TG_TAG", evttrigdata->tag, 1);
+	setenv("PLSH_TG_TAG",
+#if PG_VERSION_NUM >= 130000
+	       GetCommandTagName(evttrigdata->tag),
+#else
+	       evttrigdata->tag,
+#endif
+	       1);
 #endif
 }
 
