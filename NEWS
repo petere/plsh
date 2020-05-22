@@ -1,3 +1,7 @@
+* Version 1.20200522
+
+- Works with PostgreSQL 8.4 through 13.
+
 * Version 1.20171014
 
 - Works with PostgreSQL 8.4 through 10.
