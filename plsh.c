@@ -55,7 +55,7 @@ typedef void EventTriggerData;
 #endif
 
 
-static char * handler_internal2(const char *tempfile, char * const * arguments, const char *proname, TriggerData *trigger_data, EventTriggerData *event_trigger_data);
+  static char * handler_internal2(const char *tempfile, char ** arguments, const char *proname, TriggerData *trigger_data, EventTriggerData *event_trigger_data, bool use_stdin);
 
 
 
@@ -423,7 +423,7 @@ wait_and_cleanup(pid_t child_pid, const char *tempfile)
  * Internal handler function
  */
 Datum
-handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
+handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute, bool use_stdin)
 {
 	HeapTuple proctuple;
 	Form_pg_proc pg_proc_entry;
@@ -540,7 +540,8 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 							arguments,
 							NameStr(pg_proc_entry->proname),
 							CALLED_AS_TRIGGER(fcinfo) ? (TriggerData *) fcinfo->context : NULL,
-							CALLED_AS_EVENT_TRIGGER(fcinfo) ? (EventTriggerData *) fcinfo->context : NULL);
+				                        CALLED_AS_EVENT_TRIGGER(fcinfo) ? (EventTriggerData *) fcinfo->context : NULL,
+		                                        use_stdin);
 
 
 	ReleaseSysCache(proctuple);
@@ -565,9 +566,10 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 
 
 static char *
-handler_internal2(const char *tempfile, char * const * arguments, const char *proname,
-				  TriggerData *trigger_data, EventTriggerData *event_trigger_data)
+handler_internal2(const char *tempfile, char ** arguments, const char *proname,
+		  TriggerData *trigger_data, EventTriggerData *event_trigger_data, bool use_stdin)
 {
+	int stdin_pipe[2];
 	int stdout_pipe[2];
 	int stderr_pipe[2];
 	pid_t child_pid;
@@ -577,12 +579,25 @@ handler_internal2(const char *tempfile, char * const * arguments, const char *pr
 	char * stderr_buffer;
 	size_t len;
 	bool return_null;
+	size_t i;
 
 	/* start process voodoo */
 
+	if (use_stdin && pipe(stdin_pipe) == -1)
+	{
+		remove(tempfile);
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not make pipe: %m")));
+	}
 	if (pipe(stdout_pipe) == -1)
 	{
 		remove(tempfile);
+		if (use_stdin)
+		{
+			close(stdin_pipe[0]);
+			close(stdin_pipe[1]);
+		}
 		ereport(ERROR,
 				(errcode_for_file_access(),
 				 errmsg("could not make pipe: %m")));
@@ -590,6 +605,11 @@ handler_internal2(const char *tempfile, char * const * arguments, const char *pr
 	if (pipe(stderr_pipe) == -1)
 	{
 		remove(tempfile);
+		if (use_stdin)
+		{
+			close(stdin_pipe[0]);
+			close(stdin_pipe[1]);
+		}
 		close(stdout_pipe[0]);
 		close(stdout_pipe[1]);
 		ereport(ERROR,
@@ -602,6 +622,11 @@ handler_internal2(const char *tempfile, char * const * arguments, const char *pr
 	if (child_pid == -1)		/* fork failed */
 	{
 		remove(tempfile);
+		if (use_stdin)
+		{
+			close(stdin_pipe[0]);
+			close(stdin_pipe[1]);
+		}
 		close(stdout_pipe[0]);
 		close(stdout_pipe[1]);
 		close(stderr_pipe[0]);
@@ -615,9 +640,21 @@ handler_internal2(const char *tempfile, char * const * arguments, const char *pr
 		/* close reading end */
 		close(stdout_pipe[0]);
 		close(stderr_pipe[0]);
+		if (use_stdin)
+		{
+			/* close writing end */
+			close(stdin_pipe[1]);
+			dup2(stdin_pipe[0], STDIN_FILENO);
 
-		dup2(stdout_pipe[1], 1);
-		dup2(stderr_pipe[1], 2);
+			/* skip the first argument as we get it on STDIN */
+			for (i = 2; arguments[i] != NULL; i++)
+			{
+				arguments[i] = arguments[i + 1];
+			}
+		}
+
+		dup2(stdout_pipe[1], STDOUT_FILENO);
+		dup2(stderr_pipe[1], STDERR_FILENO);
 		close(stdout_pipe[1]);
 		close(stderr_pipe[1]);
 
@@ -637,6 +674,22 @@ handler_internal2(const char *tempfile, char * const * arguments, const char *pr
 	/* parent continues... */
 	close(stdout_pipe[1]);	/* writing end */
 	close(stderr_pipe[1]);
+	
+	if (use_stdin)
+	{
+		ssize_t res;
+		size_t argsize = strlen(arguments[2]);
+		size_t bytes_written = 0;
+		
+		close(stdin_pipe[0]); /* reading end */
+		
+		/* put first argument into stdin pipe*/
+		while ((res = write(stdin_pipe[1], arguments[2] + bytes_written, argsize - bytes_written)) > 0) {
+			bytes_written += (size_t)res;
+			if (bytes_written == argsize) break;
+		}
+		close(stdin_pipe[1]);
+	}
 
 
 	/* fetch return value from stdout */
@@ -739,7 +792,7 @@ PG_FUNCTION_INFO_V1(plsh_handler);
 Datum
 plsh_handler(PG_FUNCTION_ARGS)
 {
-	return handler_internal(fcinfo->flinfo->fn_oid, fcinfo, true);
+	return handler_internal(fcinfo->flinfo->fn_oid, fcinfo, true, false);
 }
 
 
@@ -754,7 +807,7 @@ plsh_validator(PG_FUNCTION_ARGS)
 {
 	if (!CheckFunctionValidatorAccess(fcinfo->flinfo->fn_oid, PG_GETARG_OID(0)))
 		PG_RETURN_VOID();
-	return handler_internal(PG_GETARG_OID(0), fcinfo, false);
+	return handler_internal(PG_GETARG_OID(0), fcinfo, false, false);
 }
 
 
@@ -778,7 +831,46 @@ plsh_inline_handler(PG_FUNCTION_ARGS)
 	tempfile = write_to_tempfile(rest);
 	arguments[argc++] = tempfile;
 	arguments[argc] = NULL;
-	handler_internal2(tempfile, arguments, "inline code block", NULL, NULL);
+	handler_internal2(tempfile, arguments, "inline code block", NULL, NULL, false);
 	PG_RETURN_VOID();
 }
+#endif
+
+
+/*
+ * The PL2 handler
+ */
+PG_FUNCTION_INFO_V1(plsh2_handler);
+
+Datum
+plsh2_handler(PG_FUNCTION_ARGS)
+{
+	return handler_internal(fcinfo->flinfo->fn_oid, fcinfo, true, true);
+}
+
+
+
+/*
+ * Validator function
+ */
+PG_FUNCTION_INFO_V1(plsh2_validator);
+
+Datum
+plsh2_validator(PG_FUNCTION_ARGS)
+{
+	if (!CheckFunctionValidatorAccess(fcinfo->flinfo->fn_oid, PG_GETARG_OID(0)))
+		PG_RETURN_VOID();
+	return handler_internal(PG_GETARG_OID(0), fcinfo, false, true);
+}
+
+
+
+#if CATALOG_VERSION_NO >= 200909221
+/*
+ * Inline handler
+ */
+/*
+  We use inline plsh_inline_handler for plsh2 as inline functions has no parameters and
+  thus there is no difference.
+ */
 #endif

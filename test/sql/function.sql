@@ -56,3 +56,11 @@ CREATE FUNCTION perl_concat(text, text) RETURNS text LANGUAGE plsh AS '
 print $ARGV[0] . $ARGV[1];
 ';
 SELECT perl_concat('pe', 'rl');
+
+CREATE FUNCTION perl_concat2(text, text) RETURNS text LANGUAGE plsh2 AS '
+#!/usr/bin/perl
+
+print while (<STDIN>);
+print $ARGV[0];
+';
+SELECT perl_concat2('pe', 'rl');

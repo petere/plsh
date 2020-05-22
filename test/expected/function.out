@@ -76,3 +76,15 @@ SELECT perl_concat('pe', 'rl');
  perl
 (1 row)
 
+CREATE FUNCTION perl_concat2(text, text) RETURNS text LANGUAGE plsh2 AS '
+#!/usr/bin/perl
+
+print while (<STDIN>);
+print $ARGV[0];
+';
+SELECT perl_concat2('pe', 'rl');
+ perl_concat2 
+--------------
+ perl
+(1 row)
+
