@@ -73,6 +73,8 @@ PLSH_TG_WHEN=AFTER
 Arg is 'dummy2'
 Arg is '1'
 Arg is 'one'
+Arg is '1'
+Arg is 'oneone'
 PLSH_TG_LEVEL=ROW
 PLSH_TG_NAME=testtrigger2
 PLSH_TG_OP=UPDATE
