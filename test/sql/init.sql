@@ -1,1 +1,1 @@
-\i plsh.sql
+CREATE EXTENSION plsh;
