@@ -123,7 +123,7 @@ manually.
 Test suite
 ----------
 
-[![Build Status](https://secure.travis-ci.org/petere/plsh.png)](http://travis-ci.org/petere/plsh)
+[![Build Status](https://api.cirrus-ci.com/github/petere/plsh.svg)](https://cirrus-ci.com/github/petere/plsh)
 
 To run the test suite, execute
 
