@@ -1,3 +1,11 @@
+* Version 1.20220917
+
+- Works with PostgreSQL 8.4 through 15.
+
+- Uses of the deprecated "which" shell command were removed.
+
+- Test suite was changed to use CREATE EXTENSION.
+
 * Version 1.20200522
 
 - Works with PostgreSQL 8.4 through 13.
