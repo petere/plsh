@@ -18,20 +18,26 @@ task:
       - PGVERSION: 10
       - PGVERSION: 9.6
       - PGVERSION: 9.5
-      - PGVERSION: 9.4
-      - PGVERSION: 9.3
   setup_script:
     - apt-get update
     - apt-get -y install curl gnupg lsb-release
     - curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
     - echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" | tee /etc/apt/sources.list.d/pgdg.list
     - apt-get update
-    - apt-get -y install gcc make postgresql-$PGVERSION postgresql-server-dev-$PGVERSION
+    - apt-get -y install gcc meson postgresql-$PGVERSION postgresql-server-dev-$PGVERSION
     - pg_createcluster --start $PGVERSION test -p 55435 -- -A trust
   build_script:
     - PATH=/usr/lib/postgresql/$PGVERSION/bin:$PATH
-    - make all
-    - make install
+    - meson setup build
+    - meson compile -C build
+    - meson install -C build
   test_script:
     - PATH=/usr/lib/postgresql/$PGVERSION/bin:$PATH
-    - PGPORT=55435 make installcheck PGUSER=postgres
+    - PGPORT=55435 PGUSER=postgres meson test -C build -v
+  on_failure:
+    log_artifacts:
+      paths:
+        - "**/*.log"
+        - "**/*.diffs"
+        - "**/regress_log_*"
+      type: text/plain
