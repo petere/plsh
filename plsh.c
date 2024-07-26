@@ -481,11 +481,11 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 			for (i = 0; i < tupdesc->natts; i++)
 			{
 				char * s;
-				bool isnull;
+				bool attr_isnull;
 				Datum attr;
 
-				attr = heap_getattr(oldtuple, i + 1, tupdesc, &isnull);
-				if (isnull)
+				attr = heap_getattr(oldtuple, i + 1, tupdesc, &attr_isnull);
+				if (attr_isnull)
 					s = "";
 				else
 					s = type_to_cstring(attr, TupleDescAttr(tupdesc, i)->atttypid);
