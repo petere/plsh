@@ -478,6 +478,7 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 		}
 
 		if (TRIGGER_FIRED_FOR_ROW(trigdata->tg_event))
+		{
 			for (i = 0; i < tupdesc->natts; i++)
 			{
 				char * s;
@@ -495,6 +496,28 @@ handler_internal(Oid function_oid, FunctionCallInfo fcinfo, bool execute)
 
 				arguments[argc++] = s;
 			}
+                        if (TRIGGER_FIRED_BY_UPDATE(trigdata->tg_event))
+                        {
+                                HeapTuple newtuple = trigdata->tg_newtuple;
+                                for (i = 0; i < tupdesc->natts; i++)
+                                {
+                                        char * s;
+                                        bool isnull;
+                                        Datum attr;
+
+                                        attr = heap_getattr(newtuple, i + 1, tupdesc, &isnull);
+                                        if (isnull)
+                                                s = "";
+                                        else
+                                                s = type_to_cstring(attr, TupleDescAttr(tupdesc, i)->atttypid);
+
+                                        elog(DEBUG2, "arg %d is \"%s\" (type %u)", i, s,
+                                                 TupleDescAttr(tupdesc, i)->atttypid);
+
+                                        arguments[argc++] = s;
+                                }
+                        }
+                }
 
 		/* since we can't alter the tuple anyway, set up a return
 		   tuple right now */
